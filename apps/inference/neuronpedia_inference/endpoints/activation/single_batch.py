@@ -103,7 +103,7 @@ async def activation_single_batch(
         for prompt in prompts:
             # if the prompt doesn't start with the bos, prepend it
             bos_token = model.tokenizer.bos_token
-            if not prompt.startswith(bos_token):
+            if bos_token and not prompt.startswith(bos_token):
                 prompt = bos_token + prompt
 
             tokens = model.to_tokens(
@@ -253,7 +253,7 @@ async def process_activations_batch(
         padded_tokens[i, : len(tokens)] = tokens
         original_lengths.append(len(tokens))
         # Find BOS indices for this sequence
-        bos_indices = (tokens == bos_token_id).nonzero(as_tuple=True)[0].tolist()
+        bos_indices = (tokens == bos_token_id).nonzero(as_tuple=True)[0].tolist() if bos_token_id is not None else []
         all_bos_indices.append(bos_indices)
 
     # Run batch inference (backend-aware). Right-padded + causal attention => real positions

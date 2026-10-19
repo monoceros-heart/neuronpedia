@@ -228,6 +228,8 @@ class SAEManager:
         """
         if source in self.sae_data and not self._needs_reload(source):
             return
+        if self.get_sae_type(source) == SAE_TYPE.NEURONS:
+            return
         self.load_sae(self.config.custom_hf_model_id or self.config.model_id, source)
 
     def _needs_reload(self, source: str) -> bool:
@@ -250,6 +252,9 @@ class SAEManager:
         evict another source to make room, and it ends the caller's claim on whatever
         source it asked for previously -- see the module docstring in ``sae_cache``.
         """
+        # A raw-neuron source has no weights: its activations are read straight off the model.
+        if self.get_sae_type(source) == SAE_TYPE.NEURONS:
+            return None
         if self.paging_enabled:
             self.ensure_source(source)
             return sae_cache.acquire(source)

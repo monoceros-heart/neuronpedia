@@ -179,3 +179,15 @@ class TestResidency:
         # The eviction assertions above are only meaningful because this is ordered.
         manager.get_sae("0-res-jb")
         assert isinstance(manager.loaded_saes, OrderedDict)
+
+
+class TestNeuronSources:
+    """The `neurons` set: one source per layer, read off the model with no SAE weights."""
+
+    def test_get_sae_returns_none_without_loading(self, manager: SAEManager):
+        with patch.object(manager, "load_sae") as load_sae:
+            assert manager.get_sae("4") is None
+            manager.ensure_source("4")
+        load_sae.assert_not_called()
+        assert manager.get_sae_hook("4") == "blocks.4.mlp.hook_post"
+        assert "4" not in manager.loaded_saes

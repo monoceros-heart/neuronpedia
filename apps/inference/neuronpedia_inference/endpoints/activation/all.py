@@ -78,7 +78,7 @@ async def activation_all(
 
     # if the request doesn't start with the bos, prepend it
     bos_token = Model.get_instance().tokenizer.bos_token
-    if not request.prompt.startswith(bos_token):
+    if bos_token and not request.prompt.startswith(bos_token):
         request.prompt = bos_token + request.prompt
 
     # # Removed this check because our SAE manager will just load and unload as needed (though it will be a little slower)
@@ -135,7 +135,7 @@ class ActivationProcessor:
         prepend_bos = False
         # if the prompt doesn't start with the bos, prepend it
         bos_token = model.tokenizer.bos_token
-        if not request.prompt.startswith(bos_token):
+        if bos_token and not request.prompt.startswith(bos_token):
             request.prompt = bos_token + request.prompt
 
         tokens, str_tokens, cache = await self._tokenize_and_get_cache(request.prompt, prepend_bos, request)
