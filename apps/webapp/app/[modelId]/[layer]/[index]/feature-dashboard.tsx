@@ -12,6 +12,7 @@ import EmbedsPane from '@/components/panes/embeds-pane';
 import ExplanationsPane from '@/components/panes/explanations-pane';
 import ListsPane from '@/components/panes/lists-pane';
 import SaeLensConfigPane from '@/components/panes/saelens-config-pane';
+import TriggersPane from '@/components/panes/triggers-pane';
 import { useGlobalContext } from '@/components/provider/global-provider';
 import { BreadcrumbLink, BreadcrumbPage } from '@/components/shadcn/breadcrumbs';
 import VectorItem from '@/components/vector-item';
@@ -255,6 +256,9 @@ export default function FeatureDashboard({
 
           {/* === EXPLANATIONS */}
           <ExplanationsPane currentNeuron={currentNeuron} setCurrentNeuron={setCurrentNeuron} />
+
+          {/* === SHARED TRIGGERS */}
+          <TriggersPane currentNeuron={currentNeuron} />
 
           {/* === COS SIM */}
           <CosSimPane currentNeuron={currentNeuron} />
