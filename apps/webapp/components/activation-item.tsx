@@ -6,6 +6,7 @@ import {
   makeActivationBackgroundColorWithDFA,
   replaceHtmlAnomalies,
 } from '@/lib/utils/activations';
+import { BOTTOM_ACTIVATION_DATA_SOURCE, TRIGGER_DATA_SOURCE } from '@/lib/utils/raw-neurons';
 import { cn } from '@/lib/utils/ui';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { Copy } from 'lucide-react';
@@ -18,8 +19,6 @@ const DFA_TARGET_TOKEN_CLASSNAME = 'border-2 border-orange-400';
 const DFA_SOURCE_TOKEN_CLASSNAME = 'border-2 border-emerald-400';
 const REGULAR_TOKEN_CLASSNAME = 'border-2 border-transparent hover:bg-slate-200';
 export const CENTER_ME_CLASSNAME = 'center-me';
-
-const BOTTOM_ACTIVATION_DATA_SOURCE = 'bottom';
 
 export default function ActivationItem({
   activation,
@@ -75,6 +74,8 @@ export default function ActivationItem({
   const effectiveDfa = dfa && !hasZPattern;
 
   const isBottomActivation = activation.dataSource === BOTTOM_ACTIVATION_DATA_SOURCE;
+  // A shared trigger can push a raw neuron either way, so its negative tokens are shaded too.
+  const shadeNegative = isBottomActivation || activation.dataSource === TRIGGER_DATA_SOURCE;
   const minActivationTokenIndex = activation.values ? activation.values.indexOf(Math.min(...activation.values)) : 0;
 
   // For bottom activations, center around the most negative value; otherwise center around max
@@ -355,14 +356,18 @@ export default function ActivationItem({
                             backgroundImage: (() => {
                               const tokenValue = activation.values ? activation.values[tokenIndex] : 0;
                               const isNegativeToken = tokenValue < 0;
-                              // For bottom activations with negative token values, use red; otherwise use green
-                              const useRed = isBottomActivation && isNegativeToken;
+                              // Negative tokens of bottom activations and triggers are red; everything else green
+                              const useRed = shadeNegative && isNegativeToken;
                               const zHoverContribution =
                                 hasZPattern && zHoveredTargetIndex !== null
                                   ? Math.max(0, zContributionsBySource.get(tokenIndex) || 0)
                                   : 0;
                               return makeActivationBackgroundColorWithDFA(
-                                useRed ? Math.abs(activation.minValue || 0) : overallMaxActivationValueInList,
+                                // A bottom example is scaled to its own trough; a trigger to the corpus max,
+                                // so a faint negative stays faint.
+                                useRed && isBottomActivation
+                                  ? Math.abs(activation.minValue || 0)
+                                  : overallMaxActivationValueInList,
                                 useRed ? Math.abs(tokenValue) : tokenValue,
                                 useRed ? '253, 164, 175' : '52, 211, 153',
                                 hasZPattern

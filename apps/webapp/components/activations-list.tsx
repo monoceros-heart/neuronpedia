@@ -3,6 +3,7 @@
 import ActivationSingleForm from '@/components/activation-single-form';
 import { ACTIVATION_DISPLAY_DEFAULT_CONTEXT_TOKENS } from '@/lib/utils/activations';
 import { CIRCUIT_SPARSITY_MODELS } from '@/lib/utils/circuit-sparsity';
+import { BOTTOM_ACTIVATION_DATA_SOURCE, hasBottomPole, TOP_ACTIVATION_DATA_SOURCE } from '@/lib/utils/raw-neurons';
 import * as ToggleGroup from '@radix-ui/react-toggle-group';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { HelpCircle } from 'lucide-react';
@@ -55,7 +56,10 @@ export default function ActivationsList({
   // used for showing correct snippet
   const [selectedRange, setSelectedRange] = useState(defaultRange);
   const [showLineBreaks, setShowLineBreaks] = useState(defaultShowLineBreaks);
-  const isConnectedNeuronsModel = CIRCUIT_SPARSITY_MODELS.includes(feature?.modelId || '');
+  // Two columns, one per pole: circuit-sparsity models always, and any raw neuron imported with
+  // examples of its negative side.
+  const isConnectedNeuronsModel =
+    CIRCUIT_SPARSITY_MODELS.includes(feature?.modelId || '') || hasBottomPole(activations);
   const [dfaSplit, setDfaSplit] = useState(true);
   // used to determine colors
   const [overallMaxValue, setOverallMaxValue] = useState<number>(-100);
@@ -82,16 +86,16 @@ export default function ActivationsList({
       setOverallMaxValue(getMaxValueOfActivations(activations));
       let sortedActs = activations;
       // For models with connected neurons, always show all activations without filtering
-      const skipFiltering = CIRCUIT_SPARSITY_MODELS.includes(feature?.modelId || '');
+      const skipFiltering = isConnectedNeuronsModel;
 
       // For connected neurons models, split into top/bottom columns
       if (skipFiltering) {
         const topActivations = activations
-          .filter((act) => act.dataSource === 'top')
+          .filter((act) => act.dataSource === TOP_ACTIVATION_DATA_SOURCE)
           .toSorted((a, b) => (b.maxValue || 0) - (a.maxValue || 0)); // highest to lowest
         const bottomActivations = activations
-          .filter((act) => act.dataSource === 'bottom')
-          .toSorted((a, b) => (a.maxValue || 0) - (b.maxValue || 0)); // lowest to highest
+          .filter((act) => act.dataSource === BOTTOM_ACTIVATION_DATA_SOURCE)
+          .toSorted((a, b) => (a.minValue || 0) - (b.minValue || 0)); // most negative first
         setTopItems(topActivations);
         setBottomItems(bottomActivations);
         setItems(activations);
@@ -357,19 +361,17 @@ export default function ActivationsList({
         ) : isConnectedNeuronsModel ? (
           // Two-column layout for connected neurons models
           <div className="flex flex-col gap-x-0 sm:flex-row">
-            {/* Right column: Bottom activations (lowest to highest) */}
-            <div className="flex-1">
+            {/* Left column: Top activations (highest to lowest) */}
+            <div className="flex-1 border-r border-slate-200">
               <div className="flex flex-row items-center gap-x-1 bg-slate-100 px-3 py-2 font-mono text-[10px] font-bold uppercase text-slate-600">
-                <div className="rounded-sm bg-rose-400 px-1 py-[1px]">Negative</div> Activations
+                <div className="rounded-sm bg-emerald-400 px-1 py-[1px]">Positive</div> Activations
               </div>
-              {bottomItems.length === 0 ? (
-                <div className="flex h-24 items-center justify-center text-sm text-slate-400">
-                  No bottom activations
-                </div>
+              {topItems.length === 0 ? (
+                <div className="flex h-24 items-center justify-center text-sm text-slate-400">No top activations</div>
               ) : (
-                bottomItems.map((activation, activationIndex) => (
+                topItems.map((activation, activationIndex) => (
                   <div
-                    key={`bottom-activation-${activation.id}`}
+                    key={`top-activation-${activation.id}`}
                     className={`relative border-slate-100 px-3 py-1 [&:not(:last-child)]:border-b ${
                       selectedRange > 0 && 'sm:py-2'
                     }`}
@@ -378,7 +380,7 @@ export default function ActivationsList({
                       <div className="flex w-full flex-auto flex-col text-left text-sm">
                         {activation.tokens && (
                           <ActivationItem
-                            key={`bottom-${ACTIVATION_DISPLAY_DEFAULT_CONTEXT_TOKENS[selectedRange].size}-${activationIndex}${showLineBreaks}`}
+                            key={`top-${ACTIVATION_DISPLAY_DEFAULT_CONTEXT_TOKENS[selectedRange].size}-${activationIndex}${showLineBreaks}`}
                             activation={activation}
                             tokensToDisplayAroundMaxActToken={
                               ACTIVATION_DISPLAY_DEFAULT_CONTEXT_TOKENS[selectedRange].size
@@ -401,17 +403,19 @@ export default function ActivationsList({
                 ))
               )}
             </div>
-            {/* Left column: Top activations (highest to lowest) */}
-            <div className="flex-1 border-r border-slate-200">
+            {/* Right column: Bottom activations (lowest to highest) */}
+            <div className="flex-1">
               <div className="flex flex-row items-center gap-x-1 bg-slate-100 px-3 py-2 font-mono text-[10px] font-bold uppercase text-slate-600">
-                <div className="rounded-sm bg-emerald-400 px-1 py-[1px]">Positive</div> Activations
+                <div className="rounded-sm bg-rose-400 px-1 py-[1px]">Negative</div> Activations
               </div>
-              {topItems.length === 0 ? (
-                <div className="flex h-24 items-center justify-center text-sm text-slate-400">No top activations</div>
+              {bottomItems.length === 0 ? (
+                <div className="flex h-24 items-center justify-center text-sm text-slate-400">
+                  No bottom activations
+                </div>
               ) : (
-                topItems.map((activation, activationIndex) => (
+                bottomItems.map((activation, activationIndex) => (
                   <div
-                    key={`top-activation-${activation.id}`}
+                    key={`bottom-activation-${activation.id}`}
                     className={`relative border-slate-100 px-3 py-1 [&:not(:last-child)]:border-b ${
                       selectedRange > 0 && 'sm:py-2'
                     }`}
@@ -420,7 +424,7 @@ export default function ActivationsList({
                       <div className="flex w-full flex-auto flex-col text-left text-sm">
                         {activation.tokens && (
                           <ActivationItem
-                            key={`top-${ACTIVATION_DISPLAY_DEFAULT_CONTEXT_TOKENS[selectedRange].size}-${activationIndex}${showLineBreaks}`}
+                            key={`bottom-${ACTIVATION_DISPLAY_DEFAULT_CONTEXT_TOKENS[selectedRange].size}-${activationIndex}${showLineBreaks}`}
                             activation={activation}
                             tokensToDisplayAroundMaxActToken={
                               ACTIVATION_DISPLAY_DEFAULT_CONTEXT_TOKENS[selectedRange].size
