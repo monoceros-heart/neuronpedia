@@ -71,7 +71,7 @@ async def activation_single(
         prepend_bos = False
         # if the prompt doesn't start with the bos, prepend it
         bos_token = model.tokenizer.bos_token
-        if not prompt.startswith(bos_token):
+        if bos_token and not prompt.startswith(bos_token):
             prompt = bos_token + prompt
 
         tokens = model.to_tokens(
@@ -167,8 +167,13 @@ async def process_activations(
     sae_type = sae_manager.get_sae_type(layer)
 
     # zero out all values that are the BOS token
+    # (Qwen3 has no BOS token; then there is nothing to zero.)
     bos_token_id = model.tokenizer.bos_token_id
-    bos_indices = (tokens == bos_token_id).nonzero(as_tuple=True)[0]
+    bos_indices = (
+        (tokens == bos_token_id).nonzero(as_tuple=True)[0]
+        if bos_token_id is not None
+        else torch.empty(0, dtype=torch.long, device=tokens.device)
+    )
 
     cache = await capture_cache_async(model, tokens, [hook_name])
     if sae_type == "neurons":

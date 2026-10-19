@@ -96,7 +96,7 @@ async def activation_topk_by_token(
 
     # if the request doesn't start with the bos, prepend it
     bos_token = Model.get_instance().tokenizer.bos_token
-    if not prompt.startswith(bos_token):
+    if bos_token and not prompt.startswith(bos_token):
         prompt = bos_token + prompt
 
     tokens = model.to_tokens(
