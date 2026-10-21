@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasBottomPole, poleShare } from './raw-neurons';
+import { GATE_VALUE_KEY, hasBottomPole, parseGateValue, poleShare, quadrantOf, silu } from './raw-neurons';
 
 describe('hasBottomPole', () => {
   it('is true only when some activation is a negative-pole example', () => {
@@ -25,5 +25,28 @@ describe('poleShare', () => {
     expect(poleShare(1, -4)).toBe(0);
     expect(poleShare(1, 0)).toBe(0);
     expect(poleShare(1, null)).toBe(0);
+  });
+});
+
+describe('parseGateValue', () => {
+  it('reads g and u from its own key and ignores the logit keys', () => {
+    const json = JSON.stringify({ pos: [], [GATE_VALUE_KEY]: { g: -1.5, u: -2, quadCounts: [1, 2, 3, 4] } });
+    expect(parseGateValue(json)).toEqual({ g: -1.5, u: -2, quadCounts: [1, 2, 3, 4] });
+  });
+
+  it('is null when the row has no gate/value data', () => {
+    expect(parseGateValue(null)).toBeNull();
+    expect(parseGateValue(JSON.stringify({ pos: [] }))).toBeNull();
+    expect(parseGateValue('not json')).toBeNull();
+  });
+});
+
+describe('silu and quadrants', () => {
+  it('leaks a small positive product for a double negative', () => {
+    expect(silu(0)).toBe(0);
+    expect(silu(-1.2785)).toBeCloseTo(-0.2785, 3);
+    expect(silu(-2) * -3).toBeGreaterThan(0);
+    expect(quadrantOf(-2, -3)).toBe('g−u−');
+    expect(quadrantOf(2, -3)).toBe('g+u−');
   });
 });
