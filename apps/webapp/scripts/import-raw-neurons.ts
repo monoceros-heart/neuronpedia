@@ -6,14 +6,15 @@
 // The export format (one model, any subset of its neurons) is written by
 // monoceros-heart/mechanistic-interpretability `llm/neuronpedia_app.py`:
 //
-//   { model, hfRepoId, layers, neuronsPerLayer, scan, tokensScanned, dataset,
+//   { model, hfRepoId, act?, layers, neuronsPerLayer, scan, tokensScanned, dataset,
 //     neurons: [{ layer, index, maxActApprox, activations: [{ tokens, values, maxValue,
 //                 maxValueTokenIndex, minValue, dataSource: 'top' | 'bottom', dataIndex, gate?, up? }],
 //                quadCounts? }] }
 //
 // `gate` and `up` are the example's g and u at its peak token. With the neuron's gate/up sign counts
 // they go in the row's `logitContributions` JSON under GATE_VALUE_KEY, which the page's gate and value
-// charts read (lib/utils/raw-neurons.ts); that keeps them out of the schema.
+// charts read (lib/utils/raw-neurons.ts); that keeps them out of the schema. `act` names the model's
+// gate curve and defaults to Qwen3's silu.
 //
 // Neurons go in the `neurons` source set, whose sources are bare layer numbers, so a neuron's page is
 // /<model>/<layer>/<index> as for GPT-2's neurons. Re-running replaces each imported neuron's
@@ -23,7 +24,7 @@
 import { PrismaClient } from '@prisma/client';
 import { readFileSync } from 'fs';
 import { gunzipSync } from 'zlib';
-import { GATE_VALUE_KEY } from '../lib/utils/raw-neurons';
+import { GATE_ACT, GATE_VALUE_KEY } from '../lib/utils/raw-neurons';
 
 type ExportActivation = {
   tokens: string[];
@@ -48,6 +49,7 @@ type ExportNeuron = {
 type RawNeuronExport = {
   model: string;
   hfRepoId: string;
+  act?: string;
   layers: number;
   neuronsPerLayer: number;
   scan: string;
@@ -167,7 +169,7 @@ async function main() {
         dataIndex: act.dataIndex,
         logitContributions:
           act.gate !== undefined && act.up !== undefined
-            ? JSON.stringify({ [GATE_VALUE_KEY]: { g: act.gate, u: act.up, quadCounts } })
+            ? JSON.stringify({ [GATE_VALUE_KEY]: { g: act.gate, u: act.up, act: data.act ?? GATE_ACT, quadCounts } })
             : undefined,
         creatorId: BOT_USER_ID,
       })),

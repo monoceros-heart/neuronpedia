@@ -38,13 +38,19 @@ export const GATE_VALUE_KEY = 'rawNeuron';
 // Gate/up sign quadrants in the order the scan counts them.
 export const QUADRANTS = ['g−u−', 'g−u+', 'g+u−', 'g+u+'] as const;
 
-export type GateValue = { g: number; u: number; quadCounts?: number[] };
+// The gate curve the charts draw. Rows carry the name of their model's curve as `act`; ones written
+// before it existed are Qwen3's. A row naming any other curve (GeGLU's gelu_tanh, gpt-oss's clamped
+// silu) is skipped rather than drawn on the wrong curve.
+export const GATE_ACT = 'silu';
+
+export type GateValue = { g: number; u: number; act?: string; quadCounts?: number[] };
 
 export function parseGateValue(logitContributions: string | null | undefined): GateValue | null {
   if (!logitContributions) return null;
   try {
     const value = JSON.parse(logitContributions)?.[GATE_VALUE_KEY];
-    return value && Number.isFinite(value.g) && Number.isFinite(value.u) ? value : null;
+    if (!value || !Number.isFinite(value.g) || !Number.isFinite(value.u)) return null;
+    return (value.act ?? GATE_ACT) === GATE_ACT ? value : null;
   } catch {
     return null;
   }

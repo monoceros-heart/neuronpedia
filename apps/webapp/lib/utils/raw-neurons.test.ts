@@ -39,6 +39,13 @@ describe('parseGateValue', () => {
     expect(parseGateValue(JSON.stringify({ pos: [] }))).toBeNull();
     expect(parseGateValue('not json')).toBeNull();
   });
+
+  it('skips rows whose gate curve is not silu', () => {
+    const row = (act?: string) => JSON.stringify({ [GATE_VALUE_KEY]: { g: 1, u: 2, act } });
+    expect(parseGateValue(row())).toEqual({ g: 1, u: 2 });
+    expect(parseGateValue(row('silu'))).toEqual({ g: 1, u: 2, act: 'silu' });
+    expect(parseGateValue(row('gelu_tanh'))).toBeNull();
+  });
 });
 
 describe('silu and quadrants', () => {
