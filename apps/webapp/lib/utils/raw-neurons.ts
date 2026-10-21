@@ -28,3 +28,32 @@ export function poleShare(value: number, corpusExtreme: number | null | undefine
   }
   return value / corpusExtreme;
 }
+
+// A SwiGLU neuron's activation is a = silu(g) * u, from its gate g and value (up) u. The exporter
+// stores each corpus example's g and u at the peak token, plus the neuron's gate/up sign counts over
+// the whole scan, as JSON under this key of the activation row's `logitContributions`: the token
+// tooltip only reads that column's `pos` and `neg` keys, so it ignores this one.
+export const GATE_VALUE_KEY = 'rawNeuron';
+
+// Gate/up sign quadrants in the order the scan counts them.
+export const QUADRANTS = ['g−u−', 'g−u+', 'g+u−', 'g+u+'] as const;
+
+export type GateValue = { g: number; u: number; quadCounts?: number[] };
+
+export function parseGateValue(logitContributions: string | null | undefined): GateValue | null {
+  if (!logitContributions) return null;
+  try {
+    const value = JSON.parse(logitContributions)?.[GATE_VALUE_KEY];
+    return value && Number.isFinite(value.g) && Number.isFinite(value.u) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function silu(g: number) {
+  return g / (1 + Math.exp(-g));
+}
+
+export function quadrantOf(g: number, u: number) {
+  return QUADRANTS[(g > 0 ? 2 : 0) + (u > 0 ? 1 : 0)];
+}
