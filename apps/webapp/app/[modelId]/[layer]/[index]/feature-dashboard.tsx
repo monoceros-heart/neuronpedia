@@ -10,6 +10,7 @@ import ConnectedNeuronsPane from '@/components/panes/connected-neurons-pane';
 import CosSimPane from '@/components/panes/cossim-pane';
 import EmbedsPane from '@/components/panes/embeds-pane';
 import ExplanationsPane from '@/components/panes/explanations-pane';
+import GateValuePane from '@/components/panes/gate-value-pane';
 import ListsPane from '@/components/panes/lists-pane';
 import SaeLensConfigPane from '@/components/panes/saelens-config-pane';
 import TriggersPane from '@/components/panes/triggers-pane';
@@ -349,6 +350,8 @@ export default function FeatureDashboard({
                   />
                 </div>
               )}
+              {/* === GATE AND VALUE (raw SwiGLU neurons exported with g and u) */}
+              {!embed && <GateValuePane activations={currentNeuron?.activations} />}
               <ActivationsList
                 feature={currentNeuron}
                 defaultRange={forceMiniStats ? 1 : currentNeuron?.sourceSet?.defaultRange}

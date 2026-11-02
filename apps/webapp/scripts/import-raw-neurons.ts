@@ -6,9 +6,15 @@
 // The export format (one model, any subset of its neurons) is written by
 // monoceros-heart/mechanistic-interpretability `llm/neuronpedia_app.py`:
 //
-//   { model, hfRepoId, layers, neuronsPerLayer, scan, tokensScanned, dataset,
+//   { model, hfRepoId, act?, layers, neuronsPerLayer, scan, tokensScanned, dataset,
 //     neurons: [{ layer, index, maxActApprox, activations: [{ tokens, values, maxValue,
-//                 maxValueTokenIndex, minValue, dataSource: 'top' | 'bottom', dataIndex }] }] }
+//                 maxValueTokenIndex, minValue, dataSource: 'top' | 'bottom', dataIndex, gate?, up? }],
+//                quadCounts? }] }
+//
+// `gate` and `up` are the example's g and u at its peak token. With the neuron's gate/up sign counts
+// they go in the row's `logitContributions` JSON under GATE_VALUE_KEY, which the page's gate and value
+// charts read (lib/utils/raw-neurons.ts); that keeps them out of the schema. `act` names the model's
+// gate curve and defaults to Qwen3's silu.
 //
 // Neurons go in the `neurons` source set, whose sources are bare layer numbers, so a neuron's page is
 // /<model>/<layer>/<index> as for GPT-2's neurons. Re-running replaces each imported neuron's
@@ -18,6 +24,7 @@
 import { PrismaClient } from '@prisma/client';
 import { readFileSync } from 'fs';
 import { gunzipSync } from 'zlib';
+import { GATE_ACT, GATE_VALUE_KEY } from '../lib/utils/raw-neurons';
 
 type ExportActivation = {
   tokens: string[];
@@ -27,13 +34,22 @@ type ExportActivation = {
   minValue: number;
   dataSource: 'top' | 'bottom';
   dataIndex?: string;
+  gate?: number;
+  up?: number;
 };
 
-type ExportNeuron = { layer: string; index: string; maxActApprox: number; activations: ExportActivation[] };
+type ExportNeuron = {
+  layer: string;
+  index: string;
+  maxActApprox: number;
+  activations: ExportActivation[];
+  quadCounts?: Record<string, number>;
+};
 
 type RawNeuronExport = {
   model: string;
   hfRepoId: string;
+  act?: string;
   layers: number;
   neuronsPerLayer: number;
   scan: string;
@@ -47,6 +63,8 @@ const NEURONS_SOURCESET = 'neurons';
 // neuron page shows as corpus examples (PUBLIC_ACTIVATIONS_USER_IDS).
 const BOT_USER_ID = 'clkht01d40000jv08hvalcvly';
 const TRIGGER_EXPLANATION_TYPE = 'citizen-trigger';
+// The exporter's quadrant names (qwen_interp.scan.QUADRANTS), in the order the charts expect.
+const SCAN_QUADRANTS = ['g-u-', 'g-u+', 'g+u-', 'g+u+'];
 
 const prisma = new PrismaClient();
 
@@ -138,6 +156,7 @@ async function main() {
       create: { ...key, sourceSetName: NEURONS_SOURCESET, creatorId: BOT_USER_ID, maxActApprox: neuron.maxActApprox },
     });
     await prisma.activation.deleteMany({ where: { ...key, creatorId: BOT_USER_ID } });
+    const quadCounts = neuron.quadCounts ? SCAN_QUADRANTS.map((q) => neuron.quadCounts![q] ?? 0) : undefined;
     await prisma.activation.createMany({
       data: neuron.activations.map((act) => ({
         ...key,
@@ -148,6 +167,10 @@ async function main() {
         minValue: act.minValue,
         dataSource: act.dataSource,
         dataIndex: act.dataIndex,
+        logitContributions:
+          act.gate !== undefined && act.up !== undefined
+            ? JSON.stringify({ [GATE_VALUE_KEY]: { g: act.gate, u: act.up, act: data.act ?? GATE_ACT, quadCounts } })
+            : undefined,
         creatorId: BOT_USER_ID,
       })),
     });

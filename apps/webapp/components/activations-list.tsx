@@ -372,6 +372,7 @@ export default function ActivationsList({
                 topItems.map((activation, activationIndex) => (
                   <div
                     key={`top-activation-${activation.id}`}
+                    id={`activation-${activation.id}`}
                     className={`relative border-slate-100 px-3 py-1 [&:not(:last-child)]:border-b ${
                       selectedRange > 0 && 'sm:py-2'
                     }`}
@@ -416,6 +417,7 @@ export default function ActivationsList({
                 bottomItems.map((activation, activationIndex) => (
                   <div
                     key={`bottom-activation-${activation.id}`}
+                    id={`activation-${activation.id}`}
                     className={`relative border-slate-100 px-3 py-1 [&:not(:last-child)]:border-b ${
                       selectedRange > 0 && 'sm:py-2'
                     }`}
