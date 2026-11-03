@@ -284,7 +284,39 @@ class SAEManager:
             }
 
         self.sae_set_to_saes[self.NEURONS_SOURCESET] = neurons_sourceset
+
+        # Signed raw-neuron sets (NEURON_SETS): same hook, own source ids, and a sign so a
+        # neuron's negative pole can be served as a one-sided feature of its own.
+        for neuron_set in self.config.neuron_sets:
+            set_name = neuron_set["set"]
+            sources = []
+            for layer in range(self.num_layers):
+                source = f"{layer}-{set_name}"
+                sources.append(source)
+                self.sae_data[source] = {
+                    "sae": None,
+                    "nbytes": 0,
+                    "neuronpedia_id": None,
+                    "dfa_enabled": False,
+                    "transcoder": False,
+                    "type": SAE_TYPE.NEURONS,
+                    "hook": f"blocks.{layer}.mlp.hook_post",
+                    "sign": neuron_set["sign"],
+                }
+            self.sae_set_to_saes[set_name] = sources
+            if set_name not in self.valid_sae_sets:
+                self.valid_sae_sets.append(set_name)
         return neurons_sourceset
+
+    def is_neuron_set(self, set_name: str) -> bool:
+        """Whether a source set is read straight off the MLP (built-in or NEURON_SETS)."""
+        if set_name == self.NEURONS_SOURCESET:
+            return True
+        return any(neuron_set["set"] == set_name for neuron_set in self.config.neuron_sets)
+
+    def get_neuron_sign(self, source: str) -> float:
+        """+1.0 or -1.0 for a raw-neuron source; 1.0 for anything else."""
+        return float(self.sae_data.get(source, {}).get("sign", 1))
 
     def print_sae_status(self):
         """
@@ -295,7 +327,7 @@ class SAEManager:
 
         print("\nLoadable SAEs:")
         for sae_set, sae_ids in self.sae_set_to_saes.items():
-            if sae_set == self.NEURONS_SOURCESET:
+            if self.is_neuron_set(sae_set):
                 continue
             print(f"  {sae_set}:")
             for sae_id in sae_ids:
@@ -358,7 +390,7 @@ class SAEManager:
         best_d_in = 0
         best_n_hooks = 0
         for set_name, sae_ids in self.sae_set_to_saes.items():
-            if set_name == self.NEURONS_SOURCESET:
+            if self.is_neuron_set(set_name):
                 continue
             d_saes = [self.get_d_sae(s) for s in sae_ids]
             d_ins = [self.get_d_in(s) for s in sae_ids]

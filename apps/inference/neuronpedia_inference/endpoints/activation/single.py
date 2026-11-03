@@ -177,7 +177,9 @@ async def process_activations(
 
     cache = await capture_cache_async(model, tokens, [hook_name])
     if sae_type == "neurons":
-        return process_neuron_activations(cache, hook_name, index, sae_manager.device)
+        return process_neuron_activations(
+            cache, hook_name, index, sae_manager.device, sae_manager.get_neuron_sign(layer)
+        )
     return process_feature_activations(sae_manager.get_sae(layer), sae_type, cache, hook_name, index, bos_indices)
 
 
@@ -186,9 +188,14 @@ def process_neuron_activations(
     hook_name: str,
     index: int,
     device: str,
+    sign: float = 1.0,
 ) -> ActivationValues:
+    """One neuron's value at every token, read off the MLP hidden layer.
+
+    ``sign`` is -1 for a negative-pole source (NEURON_SETS), so the pole reads as positive.
+    """
     mlp_activation_data = cache[hook_name].to(device)
-    values = torch.transpose(mlp_activation_data[0], 0, 1)[index].detach().tolist()
+    values = (sign * torch.transpose(mlp_activation_data[0], 0, 1)[index]).detach().tolist()
     max_value = max(values)
     return ActivationValues(
         values=values,

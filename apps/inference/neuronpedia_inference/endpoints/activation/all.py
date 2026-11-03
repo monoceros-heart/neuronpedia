@@ -322,7 +322,8 @@ class ActivationProcessor:
         """Get activations by index for a specific layer and SAE type."""
         if sae_type == "neurons":
             mlp_activation_data = cache[hook_name].to(Config.get_instance().device)
-            return torch.transpose(mlp_activation_data[0], 0, 1)
+            sign = SAEManager.get_instance().get_neuron_sign(selected_source)
+            return sign * torch.transpose(mlp_activation_data[0], 0, 1)
 
         activation_data = cache[hook_name].to(Config.get_instance().device)
         feature_activation_data = SAEManager.get_instance().get_sae(selected_source).encode(activation_data)

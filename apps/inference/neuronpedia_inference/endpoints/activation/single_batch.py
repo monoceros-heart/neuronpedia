@@ -269,7 +269,9 @@ async def process_activations_batch(
         if sae_type == "neurons":
             # Extract single sequence from batch
             seq_cache = {hook_name: cache[hook_name][i : i + 1, :seq_len]}
-            result = process_neuron_activations(seq_cache, hook_name, index, sae_manager.device)
+            result = process_neuron_activations(
+                seq_cache, hook_name, index, sae_manager.device, sae_manager.get_neuron_sign(layer)
+            )
         elif sae_manager.get_sae(layer) is not None:
             # Extract single sequence from batch
             seq_cache = {hook_name: cache[hook_name][i : i + 1, :seq_len]}

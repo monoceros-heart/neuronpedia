@@ -81,6 +81,37 @@ def resolve_saelens_model_id(model_id: str, directory_df: pd.DataFrame) -> str:
     return model_id
 
 
+# Same shape the webapp enforces on a new source set's name (app/api/source-set/new).
+_NEURON_SET_NAME = re.compile(r"^[a-z][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$")
+
+
+def validate_neuron_sets(neuron_sets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Check NEURON_SETS entries and return them as ``{"set": str, "sign": int}``.
+
+    A raw-neuron set serves coordinate ``i`` of ``blocks.L.mlp.hook_post`` times ``sign`` as
+    feature ``i`` of source ``"L-<set>"``. The name ``neurons`` is the built-in set and may not
+    be redeclared; names follow the webapp's source-set rule so every source id here can exist
+    there; a sign is +1 or -1 because anything else would rescale values the webapp compares
+    against stored corpus maxima.
+    """
+    seen: set[str] = set()
+    validated: list[dict[str, Any]] = []
+    for entry in neuron_sets:
+        name = entry.get("set")
+        sign = entry.get("sign", 1)
+        if not isinstance(name, str) or not _NEURON_SET_NAME.match(name) or "--" in name:
+            raise ValueError(f"NEURON_SETS: invalid set name {name!r}")
+        if name == "neurons":
+            raise ValueError("NEURON_SETS: 'neurons' is the built-in set and cannot be redeclared")
+        if name in seen:
+            raise ValueError(f"NEURON_SETS: set {name!r} declared twice")
+        if sign not in (1, -1) or isinstance(sign, bool):
+            raise ValueError(f"NEURON_SETS: sign for {name!r} must be 1 or -1, got {sign!r}")
+        seen.add(name)
+        validated.append({"set": name, "sign": int(sign)})
+    return validated
+
+
 @dataclass(eq=False, repr=False)
 class Config:
     """Server-wide inference settings.
@@ -97,6 +128,9 @@ class Config:
     model_id: str = "openai-community/gpt2"
     custom_hf_model_id: str | None = None
     sae_sets: list[str] = field(default_factory=lambda: ["res-jb"])
+    # Signed raw-neuron source sets beyond the built-in `neurons` one; see NEURON_SETS in args.py.
+    # Each entry is {"set": <name>, "sign": 1 or -1}. Validated by validate_neuron_sets.
+    neuron_sets: list[dict[str, Any]] = field(default_factory=list)
     model_dtype: str = "auto"
     # On-load quantization scheme ("" = the checkpoint as stored) and the vLLM KV cache dtype
     # ("auto" = model_dtype). Passed to load_model by the same names; the KV dtype also sizes
@@ -174,6 +208,7 @@ class Config:
         "activation_token_limit",
         "device",
         "sae_sets",
+        "neuron_sets",
         "max_loaded_saes",
         "sae_gpu_budget_gib",
         "include_sae_patterns",
@@ -194,6 +229,7 @@ class Config:
         self.exclude_sae_patterns = exclude_sae
         self.model_kwargs = json.loads(model_from_pretrained_kwargs)
         self.activation_token_limit = self.token_limit
+        self.neuron_sets = validate_neuron_sets(self.neuron_sets)
         self.sae_config = self._filter_sae_config(self._generate_sae_config())
         logger.info(
             "Initialized Config with:\n%s",

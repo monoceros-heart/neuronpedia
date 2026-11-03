@@ -316,11 +316,12 @@ def sae_static_addresses(sae_manager: object) -> tuple[list[Address], list[Addre
     )
 
     neurons = getattr(sae_manager, "NEURONS_SOURCESET", "neurons")
+    is_neuron_set = getattr(sae_manager, "is_neuron_set", lambda s: s == neurons)
     hooks: list[str] = []
     dfa_hooks: list[str] = []
     is_dfa = getattr(sae_manager, "is_dfa_enabled", lambda _s: False)
     for set_name, sae_ids in getattr(sae_manager, "sae_set_to_saes", {}).items():
-        if set_name == neurons:
+        if is_neuron_set(set_name):
             continue
         for sae_id in sae_ids:
             hook = sae_manager.get_sae_hook(sae_id)  # type: ignore[union-attr]

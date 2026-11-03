@@ -980,6 +980,7 @@ async def initialize(
             model_id=args.model_id,
             custom_hf_model_id=custom_hf_model_id,
             sae_sets=args_sae_sets,
+            neuron_sets=args.neuron_sets,
             model_dtype=args.model_dtype,
             quantization=args.quantization,
             kv_cache_dtype=args.kv_cache_dtype,

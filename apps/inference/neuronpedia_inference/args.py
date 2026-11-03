@@ -18,6 +18,11 @@ def parse_env_and_args():
     # An empty list is valid and means "load no SAEs": the model-only endpoints
     # (activation/raw, lens, steer, tokenize) work without them.
     args.sae_sets = json.loads(os.getenv("SAE_SETS", '["res-jb"]'))
+    # Extra raw-neuron source sets, each read off mlp.hook_post like the built-in `neurons` set
+    # but under its own name and with a sign: [{"set": "fineweb10m", "sign": 1},
+    # {"set": "fineweb10m-neg", "sign": -1}]. A sign of -1 serves a neuron's negative pole as a
+    # one-sided feature. Empty by default, which leaves only the built-in set.
+    args.neuron_sets = json.loads(os.getenv("NEURON_SETS", "[]"))
     # "auto" loads each checkpoint in its native dtype (e.g. gemma-2/3, qwen3 = bf16; gpt2 = fp32)
     # rather than forcing fp32. Override with MODEL_DTYPE=float32 for tight fp32 numerics if needed.
     args.model_dtype = os.getenv("MODEL_DTYPE", "auto")
