@@ -193,17 +193,19 @@ webapp-install: ## Webapp: install dependencies
 	fi
 	cd apps/webapp && npm install
 
-webapp-dev: ## Webapp: run with hot reload on http://localhost:3000
+# Listens on 127.0.0.1 unless given BIND: in local mode the admin routes take no sign-in, so the
+# port should not be reachable from other machines by accident. BIND=0.0.0.0 opens it to the LAN.
+webapp-dev: ## Webapp: run with hot reload on http://localhost:3000. Optional: BIND (127.0.0.1; 0.0.0.0 for the LAN)
 	$(LOAD_ROOT_ENV) \
-	cd apps/webapp && npm run dev:localhost
+	cd apps/webapp && WEBAPP_BIND=$(or $(BIND),127.0.0.1) npm run dev:localhost
 
 webapp-build: ## Webapp: production build
 	$(LOAD_ROOT_ENV) \
 	cd apps/webapp && npm run build:localhost
 
-webapp-run: ## Webapp: serve the production build on http://localhost:3000
+webapp-run: ## Webapp: serve the production build on http://localhost:3000. Optional: BIND (127.0.0.1; 0.0.0.0 for the LAN)
 	$(LOAD_ROOT_ENV) \
-	cd apps/webapp && npm run start:localhost
+	cd apps/webapp && npm run start:localhost -- --hostname $(or $(BIND),127.0.0.1)
 
 webapp-openapi: ## Webapp: regenerate lib/api/*.d.ts from the servers' openapi.json
 	cd apps/webapp && npm run openapi
