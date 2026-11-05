@@ -132,6 +132,24 @@ const withDeadline = (timeoutMs: number, callerSignal?: AbortSignal | null): Abo
   return callerSignal ? AbortSignal.any([callerSignal, deadline]) : deadline;
 };
 
+/**
+ * Sends an openapi-fetch Request with its body read into memory first.
+ *
+ * Passing the Request straight to fetch streams its body, which undici sends with
+ * `Transfer-Encoding: chunked`. Some proxies in front of an inference server refuse that: Modal's
+ * web-server proxy answers every chunked HTTP/1.1 request with a 500. A buffered body goes with a
+ * Content-Length instead, and these bodies are small JSON.
+ */
+export const inferenceFetch = async (request: Request): Promise<Response> => {
+  const body = request.body ? await request.arrayBuffer() : undefined;
+  return fetch(request.url, {
+    method: request.method,
+    headers: request.headers,
+    body,
+    signal: withDeadline(INFERENCE_REQUEST_TIMEOUT_MS, request.signal),
+  });
+};
+
 // The /v1 prefix is part of the paths in the spec, so it is not in the base URL.
 export const makeInferenceServerApiWithServerHost = (serverHost: string) =>
   createClient<paths>({
@@ -142,7 +160,7 @@ export const makeInferenceServerApiWithServerHost = (serverHost: string) =>
     },
     // openapi-fetch has no timeout of its own, so without this every non-streaming call
     // inherits undici's 300s and hangs past whatever `maxDuration` the route declared.
-    fetch: (request: Request) => fetch(request, { signal: withDeadline(INFERENCE_REQUEST_TIMEOUT_MS, request.signal) }),
+    fetch: inferenceFetch,
   });
 
 type InferenceResult<T> = { data?: T; error?: unknown; response: Response };
