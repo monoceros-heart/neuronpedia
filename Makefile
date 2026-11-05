@@ -28,7 +28,7 @@ LOAD_ROOT_ENV = set -a; if [ -f .env ]; then . ./.env; fi; set +a;
 .PHONY: help init-env install-nodejs \
 	db-init db-check db-status db-reset \
 	host-add host-list host-remove \
-	user-key model-add source-set-update explanations-import local-secret \
+	user-key model-add source-set-update explanations-import local-secret dashboards-serve dashboards-check \
 	webapp-install webapp-dev webapp-build webapp-run webapp-openapi sdk-dry-run \
 	inference-install inference-dev inference-list-configs inference-openapi \
 	autointerp-install autointerp-dev autointerp-openapi \
@@ -189,6 +189,24 @@ explanations-import: ## Local: load explanations and scores from a JSONL file. R
 
 local-secret: ## Local: generate the webapp<->GPU-server secret into apps/webapp/.env.localhost.local (never printed). Optional: ROTATE=1
 	@node apps/webapp/scripts/local-secret.js $(if $(filter 1 true yes,$(ROTATE)),--rotate,)
+
+DASHBOARDS_CLI = cd apps/webapp && npx --no-install ts-node -r tsconfig-paths/register \
+	--compiler-options '{"module":"CommonJS"}' scripts/dashboards.ts
+
+dashboards-serve: ## Dashboards: serve neuron dashboard files with ranges and CORS (http-server). Required: DIR. Optional: PORT (3001), BIND (127.0.0.1)
+	@if [ -z "$(DIR)" ]; then \
+		echo "Error: DIR is required: the folder holding v2/<model>/... (format: docs/NEURON_DASHBOARDS.md)."; \
+		exit 1; \
+	fi
+	@echo "Point a source set at it: make source-set-update MODEL=<id> DASHBOARDS_URL=http://$(or $(BIND),127.0.0.1):$(or $(PORT),3001)/v2/<id>"
+	@npx --yes http-server@14.1.1 "$(abspath $(DIR))" -a $(or $(BIND),127.0.0.1) -p $(or $(PORT),3001) --cors -c-1
+
+dashboards-check: ## Dashboards: load sample neurons with the webapp's own reader, no browser. Required: URL. Optional: LAYERS (0,17), SAMPLE (3)
+	@if [ -z "$(URL)" ]; then \
+		echo "Error: URL is required, e.g. make dashboards-check URL=http://127.0.0.1:3001/v2/qwen3-8b"; \
+		exit 1; \
+	fi
+	@$(DASHBOARDS_CLI) check --url $(URL) $(if $(LAYERS),--layers $(LAYERS),) $(if $(SAMPLE),--sample $(SAMPLE),)
 
 db-reset: ## Database: DROP the schema and rebuild it - this deletes your local data!
 	@echo "WARNING: This will delete all data in your local Neuronpedia database!"
