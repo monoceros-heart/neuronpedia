@@ -1,6 +1,7 @@
 import { MAX_EXPLANATION_SEARCH_RESULTS, searchExplanationsAllVec } from '@/lib/db/explanation';
 import { getNeurons } from '@/lib/db/neuron';
-import { getExplanationEmbeddingSql } from '@/lib/external/embedding';
+import { getSearchQueryEmbeddingSql } from '@/lib/external/embedding';
+import { EmbeddingsSkippedError } from '@/lib/utils/embedding-availability';
 import { SearchExplanationsResponse } from '@/lib/utils/general';
 import { NeuronIdentifier } from '@/lib/utils/neuron-identifier';
 import { RequestOptionalUser, withOptionalUser } from '@/lib/with-user';
@@ -122,7 +123,7 @@ export const POST = withOptionalUser(async (request: RequestOptionalUser) => {
   try {
     const body = await explanationSearchAllRequestSchema.validate(bodyJson);
     // get the embeddings from OpenAI for the text
-    const queryEmbeddingStr = await getExplanationEmbeddingSql(body.query);
+    const queryEmbeddingStr = await getSearchQueryEmbeddingSql(body.query);
     const result = await searchExplanationsAllVec(queryEmbeddingStr, body.offset || 0, request.user);
     // get the neurons
     const neurons = await getNeurons(
@@ -147,6 +148,9 @@ export const POST = withOptionalUser(async (request: RequestOptionalUser) => {
     console.error(error);
     if (error instanceof ValidationError) {
       return NextResponse.json({ message: error.message }, { status: 400 });
+    }
+    if (error instanceof EmbeddingsSkippedError) {
+      return NextResponse.json({ message: error.message }, { status: 503 });
     }
     return NextResponse.json({ message: 'Unknown Error' }, { status: 500 });
   }
