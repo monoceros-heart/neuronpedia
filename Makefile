@@ -22,6 +22,7 @@ LOAD_ROOT_ENV = set -a; if [ -f .env ]; then . ./.env; fi; set +a;
 .PHONY: help init-env install-nodejs \
 	db-init db-check db-status db-reset \
 	host-add host-list host-remove \
+	user-key model-add source-set-update \
 	webapp-install webapp-dev webapp-build webapp-run webapp-openapi sdk-dry-run \
 	inference-install inference-dev inference-list-configs inference-openapi \
 	autointerp-install autointerp-dev autointerp-openapi \
@@ -136,6 +137,42 @@ host-remove: ## Hosts: deregister a GPU server. Required: SERVICE, URL
 		exit 1; \
 	fi
 	@$(HOST_CLI) remove --service $(SERVICE) --url $(URL)
+
+LOCAL_ADMIN = cd apps/webapp && npx --no-install env-cmd -f .env.localhost --use-shell \
+	'ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/local-admin.ts'
+
+# The local equivalents of sign-up, Neuronpedia's dataset bucket and a production admin: each
+# writes rows straight to the local database (and refuses any other), so an agent can set up a
+# working instance with no browser, no sign-in and no SQL.
+user-key: ## Local: create a user and write its API key to a file, never stdout. Optional: NAME (local), ADMIN=1, ROTATE=1, OUT
+	@$(LOCAL_ADMIN) user-key --name $(or $(NAME),local) \
+		$(if $(filter 1 true yes,$(ADMIN)),--admin,) \
+		$(if $(filter 1 true yes,$(ROTATE)),--rotate,) \
+		$(if $(OUT),--out "$(OUT)",)
+
+model-add: ## Local: add a model and its raw-neuron source set. Required: MODEL, LAYERS, NEURONS_PER_LAYER. Optional: HF_REPO, DISPLAY_NAME, DASHBOARDS_URL, INFERENCE=1, VISIBILITY
+	@if [ -z "$(MODEL)" ] || [ -z "$(LAYERS)" ] || [ -z "$(NEURONS_PER_LAYER)" ]; then \
+		echo "Error: MODEL, LAYERS and NEURONS_PER_LAYER are all required."; \
+		echo "  e.g. make model-add MODEL=qwen3-8b LAYERS=36 NEURONS_PER_LAYER=12288 HF_REPO=Qwen/Qwen3-8B"; \
+		exit 1; \
+	fi
+	@$(LOCAL_ADMIN) model-add --id $(MODEL) --layers $(LAYERS) --neurons-per-layer $(NEURONS_PER_LAYER) \
+		$(if $(HF_REPO),--hf-repo $(HF_REPO),) \
+		$(if $(DISPLAY_NAME),--display-name "$(DISPLAY_NAME)",) \
+		$(if $(DASHBOARDS_URL),--dashboards-url $(DASHBOARDS_URL),) \
+		$(if $(filter 1 true yes,$(INFERENCE)),--inference,) \
+		$(if $(VISIBILITY),--visibility $(VISIBILITY),)
+
+source-set-update: ## Local: change a source set. Required: MODEL. Optional: SET (neurons), DASHBOARDS_URL (or none), INFERENCE=0|1, VISIBILITY
+	@if [ -z "$(MODEL)" ]; then \
+		echo "Error: MODEL is required."; \
+		echo "  e.g. make source-set-update MODEL=qwen3-8b DASHBOARDS_URL=http://127.0.0.1:3001/v2/qwen3-8b"; \
+		exit 1; \
+	fi
+	@$(LOCAL_ADMIN) source-set-update --model $(MODEL) --set $(or $(SET),neurons) \
+		$(if $(DASHBOARDS_URL),--dashboards-url $(DASHBOARDS_URL),) \
+		$(if $(INFERENCE),--inference $(INFERENCE),) \
+		$(if $(VISIBILITY),--visibility $(VISIBILITY),)
 
 db-reset: ## Database: DROP the schema and rebuild it - this deletes your local data!
 	@echo "WARNING: This will delete all data in your local Neuronpedia database!"
