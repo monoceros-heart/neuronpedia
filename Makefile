@@ -30,7 +30,7 @@ LOAD_ROOT_ENV = set -a; if [ -f .env ]; then . ./.env; fi; set +a;
 	host-add host-list host-remove \
 	user-key model-add source-set-update explanations-import local-secret dashboards-serve dashboards-check \
 	webapp-install webapp-dev webapp-build webapp-run webapp-openapi sdk-dry-run \
-	inference-install inference-dev inference-list-configs inference-openapi \
+	inference-install inference-dev inference-list-configs inference-modal-deploy inference-modal-stop inference-openapi \
 	autointerp-install autointerp-dev autointerp-openapi \
 	graph-install graph-dev graph-openapi \
 	sparsity-install sparsity-dev sparsity-openapi \
@@ -288,6 +288,22 @@ inference-list-configs: ## Inference: list available MODEL_SOURCESET values
 		echo -e "    \033[1;35mmake inference-dev MODEL_SOURCESET=$$name\033[0m"; \
 		echo ""; \
 	done
+
+# Modal runs utils/modal-inference/inference_host.py through uvx, so nothing is added to any
+# project's dependencies; the Modal client reads your token from ~/.modal.toml (`modal token new`).
+MODAL_CLI ?= uvx --from modal==1.6.2 modal
+
+inference-modal-deploy: ## Inference: run a config on a Modal GPU and print its URL for host-add. Required: MODEL_SOURCESET. Optional: GPU=L4
+	@if [ ! -f ".env.inference.$(MODEL_SOURCESET)" ]; then \
+		echo "Error: .env.inference.$(MODEL_SOURCESET) not found. Run 'make inference-list-configs'."; \
+		exit 1; \
+	fi
+	@$(SET_LOCAL_SECRET); \
+	NP_INFERENCE_SECRET="$$SECRET" NP_INFERENCE_CONFIG="$(MODEL_SOURCESET)" NP_INFERENCE_GPU="$(GPU)" \
+		$(MODAL_CLI) deploy utils/modal-inference/inference_host.py
+
+inference-modal-stop: ## Inference: stop the Modal app for a config (deregister it with host-remove too). Required: MODEL_SOURCESET
+	@$(MODAL_CLI) app stop -y "np-inference-$$(echo '$(MODEL_SOURCESET)' | tr 'A-Z' 'a-z' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$$//g')"
 
 inference-openapi: ## Inference: rewrite apps/inference/openapi.json from the pydantic models
 	cd apps/inference && $(call uv_run,inference) python dump_openapi.py
