@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isLocalMode } from './utils/local-mode';
 
 export const SITE_NAME_VERCEL_DEPLOY = process.env.NEXT_PUBLIC_SITE_NAME_VERCEL_DEPLOY;
 export const IS_ONE_CLICK_VERCEL_DEPLOY = SITE_NAME_VERCEL_DEPLOY !== undefined;
@@ -163,7 +164,13 @@ export const SIGN_IN_EMAILS_PER_DAY = Number.isNaN(signInEmailsPerDay) ? 1000 : 
 // export const APPLE_KEY_ID = process.env.APPLE_KEY_ID || '';
 // export const APPLE_TEAM_ID = process.env.APPLE_TEAM_ID || '';
 
-export const IS_LOCALHOST = process.env.NEXT_PUBLIC_URL === 'http://localhost:3000';
+// Local mode: see lib/utils/local-mode.ts. Both variables are read by name here so Next inlines them
+// into client bundles.
+export const IS_LOCALHOST = isLocalMode(
+  process.env.NEXT_PUBLIC_LOCAL_MODE,
+  process.env.NEXT_PUBLIC_URL,
+  process.env.NEXT_PUBLIC_VERCEL_ENV,
+);
 export const IS_ACTUALLY_NEURONPEDIA_ORG =
   process.env.NEXT_PUBLIC_URL === 'https://neuronpedia.org' ||
   process.env.NEXT_PUBLIC_URL === 'https://www.neuronpedia.org';
