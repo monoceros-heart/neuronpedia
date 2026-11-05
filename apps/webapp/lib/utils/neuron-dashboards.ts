@@ -88,6 +88,8 @@ export type NeuronDashboard = {
   record: NeuronDashboardRecord;
   // The source document of each activation row, by activation id, to load the full text on request.
   docRefs: Record<string, NeuronDashboardDocRef>;
+  // The decoded string for each token id, for panels that read examples straight from the record.
+  vocab: string[];
 };
 
 // Window tokens are document tokens start .. start + length - 1.
@@ -224,6 +226,7 @@ export function recordToNeuronDashboard(
     activations,
     record,
     docRefs,
+    vocab,
   };
 }
 

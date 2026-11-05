@@ -9,6 +9,7 @@ import ConnectedNeuronsPane from '@/components/panes/connected-neurons-pane';
 import CosSimPane from '@/components/panes/cossim-pane';
 import EmbedsPane from '@/components/panes/embeds-pane';
 import ExplanationsPane from '@/components/panes/explanations-pane';
+import NeuronGatePanels from '@/components/panes/neuron-gate-panels';
 import SaeLensConfigPane from '@/components/panes/saelens-config-pane';
 import { useGlobalContext } from '@/components/provider/global-provider';
 import { BreadcrumbLink, BreadcrumbPage } from '@/components/shadcn/breadcrumbs';
@@ -99,6 +100,13 @@ export default function FeatureDashboard({
   const logHistogram = useMemo(
     () => (externalDashboard.status === 'ready' ? signedLogHistogram(externalDashboard.dashboard.record) : undefined),
     [externalDashboard],
+  );
+  const dashboardIds = useMemo(
+    () =>
+      currentNeuron
+        ? { modelId: currentNeuron.modelId, layer: currentNeuron.layer, index: currentNeuron.index }
+        : undefined,
+    [currentNeuron],
   );
   const [hideDeadWarning, setHideDeadWarning] = useState(false);
   const [testTextResult, setTestTextResult] = useState<Activation | undefined>();
@@ -376,6 +384,9 @@ export default function FeatureDashboard({
                     signedLogHistogram={logHistogram}
                   />
                 </div>
+              )}
+              {externalDashboard.status === 'ready' && embedPlots && !forceMiniStats && dashboardIds && (
+                <NeuronGatePanels dashboard={externalDashboard.dashboard} ids={dashboardIds} />
               )}
               {externalDashboard.status === 'error' && (
                 <div className="border-b px-4 py-2 text-xs text-red-600">
