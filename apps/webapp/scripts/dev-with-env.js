@@ -34,12 +34,22 @@ function binary(name) {
   return bin;
 }
 
+// `<env-file>.local` (gitignored) is layered on top, for values that must not be committed, such
+// as the server secret `make local-secret` writes.
+const localOverlayPath = `${envFilePath}.local`;
+
 function readEnvFile() {
+  let base;
   try {
-    return dotenv.parse(fs.readFileSync(envFilePath));
+    base = dotenv.parse(fs.readFileSync(envFilePath));
   } catch (e) {
     console.error(`Could not read ${envFilePath}: ${e.message}`);
     return null;
+  }
+  try {
+    return { ...base, ...dotenv.parse(fs.readFileSync(localOverlayPath)) };
+  } catch {
+    return base;
   }
 }
 
@@ -168,7 +178,7 @@ async function restart() {
 // Watching the directory rather than the file itself, because editors that save by writing a temp
 // file and renaming it over the original leave an fs.watch on the path pointed at the old inode.
 fs.watch(WEBAPP_ROOT, (_event, filename) => {
-  if (filename !== envFileName) {
+  if (filename !== envFileName && filename !== `${envFileName}.local`) {
     return;
   }
   clearTimeout(restartTimer);

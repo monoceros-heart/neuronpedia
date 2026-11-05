@@ -1,6 +1,6 @@
 'use client';
 
-import { getS3ModelsToSources } from '@/lib/utils/s3';
+import { listImportableDatasets } from '@/lib/utils/datasets-index';
 import { getSourceSetNameFromSource } from '@/lib/utils/source';
 import { createContext, useContext, useMemo, useState } from 'react';
 import { useGlobalContext } from './global-provider';
@@ -122,7 +122,7 @@ export function ImportProvider({ children }: { children: React.ReactNode }) {
 
   const fetchSourcesIfNeeded = async () => {
     if (!isSourcesFetched) {
-      const sources = await getS3ModelsToSources();
+      const sources = await listImportableDatasets();
       setAllModelSources(sources);
       setIsSourcesFetched(true);
     }

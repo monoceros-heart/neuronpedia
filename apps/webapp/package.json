@@ -21,7 +21,7 @@
     "migrate:localhost": "env-cmd -f .env.localhost prisma migrate dev",
     "migrate:localhost:create-only": "env-cmd -f .env.localhost prisma migrate dev --create-only",
     "migrate:remote": "env-cmd -f .env.remote prisma migrate dev",
-    "start:localhost": "env-cmd -f .env.localhost next start",
+    "start:localhost": "env-cmd -f .env.localhost env-cmd --silent -f .env.localhost.local next start",
     "start:remote": "env-cmd -f .env.remote next start",
     "start:prod": "env-cmd -f .env.prod next start",
     "start": "next start",
