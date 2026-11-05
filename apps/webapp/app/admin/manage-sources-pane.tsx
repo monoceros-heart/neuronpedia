@@ -4,7 +4,7 @@ import { useGlobalContext } from '@/components/provider/global-provider';
 import { useImportContext } from '@/components/provider/import-provider';
 import { Button } from '@/components/shadcn/button';
 import { LoadingSquare } from '@/components/svg/loading-square';
-import { getS3ModelsToSources } from '@/lib/utils/s3';
+import { listImportableDatasets } from '@/lib/utils/datasets-index';
 import { getSourceSetNameFromSource } from '@/lib/utils/source';
 import { useRouter } from '@bprogress/next';
 import { Fragment, useEffect, useState } from 'react';
@@ -24,7 +24,7 @@ export default function ManageSourcesPane() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = await getS3ModelsToSources();
+        const data = await listImportableDatasets();
         setS3ModelsToSources(data);
       } finally {
         setIsLoading(false);

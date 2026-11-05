@@ -13,7 +13,13 @@ SHELL := /bin/bash
 # Shared secret the webapp presents to the local inference/autointerp/graph
 # servers. Must match INFERENCE_SERVER_SECRET (and friends) in
 # apps/webapp/.env.localhost.
-LOCALHOST_SECRET ?= localhost-secret
+# `make local-secret` replaces the public default with a generated one, kept in the gitignored
+# apps/webapp/.env.localhost.local, which `make webapp-dev` and `make webapp-run` also read.
+# LOCALHOST_SECRET in the environment (or on the make command line) still overrides both.
+# The shell reads the file itself, so the value never appears in an echoed recipe line or in ps.
+LOCAL_SECRET_FILE = apps/webapp/.env.localhost.local
+SET_LOCAL_SECRET = SECRET="$${LOCALHOST_SECRET:-$$(sed -n 's/^INFERENCE_SERVER_SECRET=//p' $(LOCAL_SECRET_FILE) 2>/dev/null)}"; \
+	SECRET="$${SECRET:-localhost-secret}"
 
 # The repo-root .env holds your personal keys (OPENAI_API_KEY, HF_TOKEN) and is
 # layered under each service's own env file. Created by `make init-env`.
@@ -22,7 +28,7 @@ LOAD_ROOT_ENV = set -a; if [ -f .env ]; then . ./.env; fi; set +a;
 .PHONY: help init-env install-nodejs \
 	db-init db-check db-status db-reset \
 	host-add host-list host-remove \
-	user-key model-add source-set-update explanations-import \
+	user-key model-add source-set-update explanations-import local-secret \
 	webapp-install webapp-dev webapp-build webapp-run webapp-openapi sdk-dry-run \
 	inference-install inference-dev inference-list-configs inference-openapi \
 	autointerp-install autointerp-dev autointerp-openapi \
@@ -181,6 +187,9 @@ explanations-import: ## Local: load explanations and scores from a JSONL file. R
 	fi
 	@$(LOCAL_ADMIN) explanations-import --file "$(abspath $(FILE))" $(if $(AUTHOR),--author $(AUTHOR),)
 
+local-secret: ## Local: generate the webapp<->GPU-server secret into apps/webapp/.env.localhost.local (never printed). Optional: ROTATE=1
+	@node apps/webapp/scripts/local-secret.js $(if $(filter 1 true yes,$(ROTATE)),--rotate,)
+
 db-reset: ## Database: DROP the schema and rebuild it - this deletes your local data!
 	@echo "WARNING: This will delete all data in your local Neuronpedia database!"
 	@read -p "Are you sure you want to continue? (y/N) " confirm; \
@@ -245,7 +254,7 @@ inference-dev: ## Inference: run on port 5002. Required: MODEL_SOURCESET=gpt2-sm
 	set -a; \
 	if [ -f .env ]; then . ./.env; fi; \
 	. ./.env.inference.$(MODEL_SOURCESET); \
-	SECRET=$(LOCALHOST_SECRET); \
+	$(SET_LOCAL_SECRET); \
 	set +a; \
 	cd apps/inference && $(call uv_run,inference) python start.py $(if $(AUTORELOAD),--reload,)
 
@@ -272,7 +281,7 @@ autointerp-install: ## Autointerp: install dependencies
 
 autointerp-dev: ## Autointerp: run on port 5003
 	$(LOAD_ROOT_ENV) \
-	export SECRET=$(LOCALHOST_SECRET); \
+	$(SET_LOCAL_SECRET); export SECRET; \
 	cd apps/autointerp && uv run python server.py
 
 autointerp-openapi: ## Autointerp: rewrite apps/autointerp/openapi.json from the pydantic models
@@ -291,7 +300,7 @@ graph-install: ## Graph: install dependencies. Options: GRAPH_BACKEND=circuit-tr
 graph-dev: ## Graph: run on port 5004. Options: AUTORELOAD=1
 	$(call engine_banner,graph)
 	$(LOAD_ROOT_ENV) \
-	export SECRET=$(LOCALHOST_SECRET); \
+	$(SET_LOCAL_SECRET); export SECRET; \
 	cd apps/graph && $(call uv_run,graph) python start.py $(if $(AUTORELOAD),--reload,)
 
 graph-openapi: ## Graph: rewrite apps/graph/openapi.json from the pydantic models
@@ -304,7 +313,7 @@ sparsity-install: ## Sparsity: install dependencies
 
 sparsity-dev: ## Sparsity: run on port 5005
 	$(LOAD_ROOT_ENV) \
-	export SECRET=$(LOCALHOST_SECRET); \
+	$(SET_LOCAL_SECRET); export SECRET; \
 	cd apps/sparsity && uv run uvicorn server:app --port 5005
 
 sparsity-openapi: ## Sparsity: rewrite apps/sparsity/openapi.json from the pydantic models
@@ -318,7 +327,7 @@ nla-install: ## NLA: install dependencies
 nla-dev: ## NLA: run on port 5009
 	$(call engine_banner,nla)
 	$(LOAD_ROOT_ENV) \
-	export SECRET=$(LOCALHOST_SECRET); \
+	$(SET_LOCAL_SECRET); export SECRET; \
 	cd apps/nla && $(call uv_run,nla) python server.py --port 5009
 
 nla-openapi: ## NLA: rewrite apps/nla/openapi.json from the pydantic models
