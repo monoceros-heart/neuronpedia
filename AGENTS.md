@@ -89,6 +89,7 @@ this file when they disagree.
 Every service runs directly on the host. Run these from the repo root; `make help` lists them all.
 
 - **Database** (Postgres 16+ with pgvector): `make db-check` for connectivity, `make db-status` for whether it is initialized, then `make db-status && make db-init` to set up an empty one. `make db-reset` is human-only — see "The database" below
+- **Local data, no sign-in**: `make user-key NAME=local ADMIN=1` writes an API key to `~/.config/neuronpedia/local.key` (never stdout); `make model-add` and `make source-set-update` create a model with its raw-neuron set and point a set at its dashboard files or turn on inference. Like `make host-add`, they write straight to the local database and refuse any other, so use them instead of SQL or Prisma scripts
 - **Webapp**: `make webapp-install`, then `make webapp-dev` for hot reload, or `make webapp-build` and `make webapp-run` for a production build
 - **Inference**: `make inference-install`, then `make inference-dev MODEL_SOURCESET=gpt2-small.res-jb` (add `AUTORELOAD=1` to reload on change; `make inference-list-configs` lists the available values)
 - **Autointerp**: `make autointerp-install`, then `make autointerp-dev`
