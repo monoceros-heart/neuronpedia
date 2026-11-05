@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db';
 import { getSourceSet } from '@/lib/db/source';
 import { getUserById } from '@/lib/db/user';
 import { PUBLIC_ACTIVATIONS_USER_IDS } from '@/lib/env';
-import { getOAIEmbedding } from '@/lib/external/embedding';
+import { EXPLANATION_EMBEDDINGS_SKIPPED, getOAIEmbedding } from '@/lib/external/embedding';
 import { getSourceSetNameFromSource } from '@/lib/utils/source';
 import { RequestAuthedUser, withAuthedUser } from '@/lib/with-user';
 import { NextResponse } from 'next/server';
@@ -163,9 +163,17 @@ export const POST = withAuthedUser(async (request: RequestAuthedUser) => {
   // if we have explanations, batch get the embeddings
   // first get all the explanations into an array, then get all the embeddings
   const explanationTexts: string[] = parsedBody.features.flatMap((f) => f.explanations?.map((e) => e.text) || []);
-  const explanationEmbeddings = await getOAIEmbedding('text-embedding-3-large', 256, explanationTexts);
+  // On a local instance with no embedding key, explanations are saved without embeddings.
+  const explanationEmbeddings = EXPLANATION_EMBEDDINGS_SKIPPED
+    ? explanationTexts.map(() => null)
+    : await getOAIEmbedding('text-embedding-3-large', 256, explanationTexts);
   // ensure we got an array of arrays
-  if (!Array.isArray(explanationEmbeddings) || !explanationEmbeddings.every((embedding) => Array.isArray(embedding))) {
+  if (
+    !Array.isArray(explanationEmbeddings) ||
+    !explanationEmbeddings.every(
+      (embedding) => Array.isArray(embedding) || (EXPLANATION_EMBEDDINGS_SKIPPED && embedding === null),
+    )
+  ) {
     throw new Error('Failed to get valid embeddings for explanations - expected array of arrays.');
   }
 
@@ -290,7 +298,7 @@ export const POST = withAuthedUser(async (request: RequestAuthedUser) => {
         skipDuplicates: true,
       });
       // Update embeddings for all created explanations in one SQL query
-      if (created.length > 0) {
+      if (created.length > 0 && !EXPLANATION_EMBEDDINGS_SKIPPED) {
         const embeddingUpdates = await Promise.all(
           created.map(async (explanation) => {
             const embedding = explanationEmbeddingsMap.get(explanation.description);

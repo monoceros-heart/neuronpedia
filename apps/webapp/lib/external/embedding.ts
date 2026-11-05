@@ -1,5 +1,14 @@
 import pgvector from 'pgvector';
+import { AZURE_OPENAI_API_KEY, EMBEDDING_PROVIDER, IS_LOCALHOST, OPENAI_API_KEY, OPENROUTER_API_KEY } from '../env';
 import { getOpenAIClient } from '../openai-client';
+import { EmbeddingsSkippedError, shouldSkipExplanationEmbeddings } from '../utils/embedding-availability';
+
+/** True on a local instance with no embedding key: explanations are saved without an embedding. */
+export const EXPLANATION_EMBEDDINGS_SKIPPED = shouldSkipExplanationEmbeddings(IS_LOCALHOST, EMBEDDING_PROVIDER, {
+  openai: OPENAI_API_KEY,
+  azure: AZURE_OPENAI_API_KEY,
+  openrouter: OPENROUTER_API_KEY,
+});
 
 const VALID_EMBEDDING_MODELS = ['text-embedding-3-large'];
 
@@ -30,8 +39,23 @@ export async function getOAIEmbedding(embeddingModel: string, dimensions: number
   return queryEmbeddingResult[0] as number[];
 }
 
-export async function getExplanationEmbeddingSql(explanation: string) {
+/**
+ * The embedding of an explanation being saved, as SQL, or null when embeddings are skipped (see
+ * EXPLANATION_EMBEDDINGS_SKIPPED); the caller then leaves the column null.
+ */
+export async function getExplanationEmbeddingSql(explanation: string): Promise<string | null> {
+  if (EXPLANATION_EMBEDDINGS_SKIPPED) {
+    return null;
+  }
   return pgvector.toSql(await getOAIEmbedding('text-embedding-3-large', 256, explanation));
+}
+
+/** The embedding of a search query, as SQL. Search has no fallback, so this throws when skipped. */
+export async function getSearchQueryEmbeddingSql(query: string): Promise<string> {
+  if (EXPLANATION_EMBEDDINGS_SKIPPED) {
+    throw new EmbeddingsSkippedError();
+  }
+  return pgvector.toSql(await getOAIEmbedding('text-embedding-3-large', 256, query));
 }
 
 export async function getExplanationEmbedding(explanation: string) {

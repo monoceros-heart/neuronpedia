@@ -1,6 +1,7 @@
 import { MAX_EXPLANATION_SEARCH_RESULTS, searchExplanationsReleaseVec } from '@/lib/db/explanation';
 import { getNeurons } from '@/lib/db/neuron';
-import { getExplanationEmbeddingSql } from '@/lib/external/embedding';
+import { getSearchQueryEmbeddingSql } from '@/lib/external/embedding';
+import { EmbeddingsSkippedError } from '@/lib/utils/embedding-availability';
 import { NeuronIdentifier } from '@/lib/utils/neuron-identifier';
 import { RequestOptionalUser, withOptionalUser } from '@/lib/with-user';
 import { NextResponse } from 'next/server';
@@ -58,7 +59,7 @@ export const POST = withOptionalUser(async (request: RequestOptionalUser) => {
   try {
     const body = await explanationSearchReleaseRequestSchema.validate(bodyJson);
 
-    const queryEmbeddingStr = await getExplanationEmbeddingSql(body.query);
+    const queryEmbeddingStr = await getSearchQueryEmbeddingSql(body.query);
     const result = await searchExplanationsReleaseVec(
       body.releaseName,
       queryEmbeddingStr,
@@ -90,6 +91,9 @@ export const POST = withOptionalUser(async (request: RequestOptionalUser) => {
   } catch (error) {
     if (error instanceof ValidationError) {
       return NextResponse.json({ message: error.message }, { status: 400 });
+    }
+    if (error instanceof EmbeddingsSkippedError) {
+      return NextResponse.json({ message: error.message }, { status: 503 });
     }
     return NextResponse.json({ message: 'Unknown Error' }, { status: 500 });
   }

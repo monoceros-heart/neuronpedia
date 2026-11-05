@@ -197,11 +197,14 @@ export const POST = withAuthedUser(async (request: RequestAuthedUser) => {
       });
 
       const embeddingStr = await getExplanationEmbeddingSql(explainResult);
-      await prisma.$queryRaw`
-      UPDATE "Explanation"
-      SET embedding = ${embeddingStr}::vector
-      WHERE id = ${exp.id}
-    `;
+      // Null on a local instance with no embedding key: the explanation is saved without one.
+      if (embeddingStr) {
+        await prisma.$queryRaw`
+        UPDATE "Explanation"
+        SET embedding = ${embeddingStr}::vector
+        WHERE id = ${exp.id}
+      `;
+      }
 
       return NextResponse.json({ explanation: exp });
     }
@@ -253,11 +256,14 @@ export const POST = withAuthedUser(async (request: RequestAuthedUser) => {
       });
 
       const embeddingStr = await getExplanationEmbeddingSql(explainResult);
-      await prisma.$queryRaw`
-      UPDATE "Explanation"
-      SET embedding = ${embeddingStr}::vector
-      WHERE id = ${exp.id}
-    `;
+      // Null on a local instance with no embedding key: the explanation is saved without one.
+      if (embeddingStr) {
+        await prisma.$queryRaw`
+        UPDATE "Explanation"
+        SET embedding = ${embeddingStr}::vector
+        WHERE id = ${exp.id}
+      `;
+      }
 
       return NextResponse.json({ explanation: exp });
     }
@@ -322,11 +328,14 @@ export const POST = withAuthedUser(async (request: RequestAuthedUser) => {
       });
 
       const embeddingStr = await getExplanationEmbeddingSql(explainResult);
-      await prisma.$queryRaw`
-      UPDATE "Explanation"
-      SET embedding = ${embeddingStr}::vector
-      WHERE id = ${exp.id}
-    `;
+      // Null on a local instance with no embedding key: the explanation is saved without one.
+      if (embeddingStr) {
+        await prisma.$queryRaw`
+        UPDATE "Explanation"
+        SET embedding = ${embeddingStr}::vector
+        WHERE id = ${exp.id}
+      `;
+      }
 
       return NextResponse.json({ explanation: exp });
     }
@@ -382,11 +391,14 @@ export const POST = withAuthedUser(async (request: RequestAuthedUser) => {
       });
 
       const embeddingStr = await getExplanationEmbeddingSql(explainResult);
-      await prisma.$queryRaw`
-      UPDATE "Explanation"
-      SET embedding = ${embeddingStr}::vector
-      WHERE id = ${exp.id}
-    `;
+      // Null on a local instance with no embedding key: the explanation is saved without one.
+      if (embeddingStr) {
+        await prisma.$queryRaw`
+        UPDATE "Explanation"
+        SET embedding = ${embeddingStr}::vector
+        WHERE id = ${exp.id}
+      `;
+      }
 
       return NextResponse.json({ explanation: exp });
     }
@@ -437,11 +449,14 @@ export const POST = withAuthedUser(async (request: RequestAuthedUser) => {
       });
 
       const embeddingStr = await getExplanationEmbeddingSql(explainResult);
-      await prisma.$queryRaw`
-      UPDATE "Explanation"
-      SET embedding = ${embeddingStr}::vector
-      WHERE id = ${exp.id}
-    `;
+      // Null on a local instance with no embedding key: the explanation is saved without one.
+      if (embeddingStr) {
+        await prisma.$queryRaw`
+        UPDATE "Explanation"
+        SET embedding = ${embeddingStr}::vector
+        WHERE id = ${exp.id}
+      `;
+      }
 
       return NextResponse.json({ explanation: exp });
     }
