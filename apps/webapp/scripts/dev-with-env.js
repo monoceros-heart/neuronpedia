@@ -79,10 +79,45 @@ function killGroup(proc, signal) {
   }
 }
 
+// Same rule as isLocalMode in lib/utils/local-mode.ts: an explicit NEXT_PUBLIC_LOCAL_MODE wins,
+// otherwise local mode is on exactly when NEXT_PUBLIC_URL is http://localhost:3000.
+function isLocalMode() {
+  const env = childEnv();
+  const flag = (env.NEXT_PUBLIC_LOCAL_MODE || '').trim().toLowerCase();
+  if (['true', '1', 'yes'].includes(flag)) return true;
+  if (['false', '0', 'no'].includes(flag)) return false;
+  return env.NEXT_PUBLIC_URL === 'http://localhost:3000';
+}
+
+// The interface the dev server listens on. WEBAPP_BIND wins (`make webapp-dev BIND=...`). Unset,
+// local mode listens on loopback only, since it turns off sign-in for the admin routes; otherwise
+// Next's own default applies, which is every interface.
+function bindAddress() {
+  if (process.env.WEBAPP_BIND) return process.env.WEBAPP_BIND;
+  return isLocalMode() ? '127.0.0.1' : undefined;
+}
+
+function nextArgs() {
+  const bind = bindAddress();
+  return bind ? ['dev', '--turbopack', '--hostname', bind] : ['dev', '--turbopack'];
+}
+
+// Say so when local mode is reachable from other machines, which takes an explicit WEBAPP_BIND.
+function warnIfLocalModeIsExposed() {
+  const bind = bindAddress() || '0.0.0.0';
+  const loopback = bind === 'localhost' || bind === '::1' || bind.startsWith('127.');
+  if (isLocalMode() && !loopback) {
+    log(
+      `local mode is on and the server listens on ${bind}: the admin routes need no sign-in from any machine that can reach this port`,
+    );
+  }
+}
+
 function startNext() {
+  warnIfLocalModeIsExposed();
   // detached puts the dev server and its compile workers in their own process group, so a restart
   // can take all of them down at once rather than orphaning workers that still hold port 3000.
-  const running = spawn(nextBin, ['dev', '--turbopack'], {
+  const running = spawn(nextBin, nextArgs(), {
     cwd: WEBAPP_ROOT,
     stdio: 'inherit',
     env: childEnv(),
