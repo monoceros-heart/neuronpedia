@@ -17,6 +17,7 @@ import {
   SMTP_SERVER_HOST,
   SMTP_SERVER_PORT,
 } from '@/lib/env';
+import { generateNeuronpediaApiKey } from '@/lib/utils/api-key';
 import { authErrorUrl, SIGN_IN_ERROR_INBOX_LIMIT, SIGN_IN_ERROR_SITE_CAP } from '@/lib/utils/sign-in-email';
 import { User, UserSecretType } from '@prisma/client';
 import crypto from 'crypto';
@@ -104,13 +105,7 @@ export const authOptions: NextAuthOptions = {
     async createUser(message) {
       const user = message.user as User;
       // create a secret for the user
-      const secretValue = `sk-np-${crypto
-        .randomBytes(32)
-        .toString('base64')
-        .replace(/\+/g, '0')
-        .replace(/\//g, '0')
-
-        .replace(/\=/g, '0')}`;
+      const secretValue = generateNeuronpediaApiKey();
       await prisma.userSecret.create({
         data: {
           user: {

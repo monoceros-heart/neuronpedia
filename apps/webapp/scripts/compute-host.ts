@@ -12,8 +12,19 @@
  *   ts-node scripts/compute-host.ts remove --service INFERENCE --url http://127.0.0.1:5002
  */
 import { ComputeService, PrismaClient } from '@prisma/client';
+import {
+  assertLocalDatabase as assertLocal,
+  CliArgs,
+  listArg as list,
+  parseArgs,
+  requireArg as requireArgWithUsage,
+} from '../lib/local-admin/cli-args';
 
 const prisma = new PrismaClient();
+
+const LOCAL_ONLY_REASON =
+  'Compute hosts registered by hand are for local development; a real environment registers ' +
+  'through POST /api/compute-host/register.';
 
 /**
  * Refuse to write to anything but a database on this machine.
@@ -24,26 +35,7 @@ const prisma = new PrismaClient();
  * the connection string tests that directly. `--remote` is the deliberate
  * override for the rare case of curating another environment's registry.
  */
-function assertLocalDatabase(args: Map<string, string>): void {
-  const url = process.env.POSTGRES_URL_NON_POOLING ?? process.env.POSTGRES_PRISMA_URL ?? '';
-  const host = (() => {
-    try {
-      return new URL(url).hostname;
-    } catch {
-      return '';
-    }
-  })();
-
-  const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === 'host.docker.internal';
-  if (isLocal || args.has('remote')) {
-    return;
-  }
-  throw new Error(
-    `Refusing to write to "${host || 'an unrecognised host'}", which is not a local database. ` +
-      `Compute hosts registered by hand are for local development; a real environment registers ` +
-      `through POST /api/compute-host/register. Pass --remote if you truly mean this database.`,
-  );
-}
+const assertLocalDatabase = (args: CliArgs) => assertLocal(args, LOCAL_ONLY_REASON);
 
 const USAGE = `
 Usage: compute-host <add|list|remove> [options]
@@ -63,32 +55,7 @@ Usage: compute-host <add|list|remove> [options]
   --remote  allow add/remove against a database that is not on this machine
 `;
 
-function parseArgs(argv: string[]): Map<string, string> {
-  const args = new Map<string, string>();
-  for (let i = 0; i < argv.length; i += 1) {
-    if (argv[i].startsWith('--')) {
-      const key = argv[i].slice(2);
-      const value = argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : 'true';
-      args.set(key, value);
-      if (value !== 'true') i += 1;
-    }
-  }
-  return args;
-}
-
-const list = (args: Map<string, string>, key: string): string[] =>
-  (args.get(key) ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-function requireArg(args: Map<string, string>, key: string): string {
-  const value = args.get(key);
-  if (!value || value === 'true') {
-    throw new Error(`Missing --${key}\n${USAGE}`);
-  }
-  return value;
-}
+const requireArg = (args: CliArgs, key: string) => requireArgWithUsage(args, key, USAGE);
 
 function parseService(raw: string): ComputeService {
   const service = raw.toUpperCase() as ComputeService;
@@ -98,7 +65,7 @@ function parseService(raw: string): ComputeService {
   return service;
 }
 
-async function add(args: Map<string, string>) {
+async function add(args: CliArgs) {
   assertLocalDatabase(args);
   const service = parseService(requireArg(args, 'service'));
   const modelId = requireArg(args, 'model');
@@ -149,7 +116,7 @@ async function add(args: Map<string, string>) {
   console.log(`Registered ${service} host for ${modelId}: ${hostUrl}`);
 }
 
-async function show(args: Map<string, string>) {
+async function show(args: CliArgs) {
   const service = args.get('service') ? parseService(args.get('service') as string) : undefined;
   const hosts = await prisma.computeHost.findMany({
     where: service ? { service } : undefined,
@@ -175,7 +142,7 @@ async function show(args: Map<string, string>) {
   });
 }
 
-async function remove(args: Map<string, string>) {
+async function remove(args: CliArgs) {
   assertLocalDatabase(args);
   const service = parseService(requireArg(args, 'service'));
   const hostUrl = requireArg(args, 'url').replace(/\/+$/, '');
