@@ -1,6 +1,13 @@
 /* eslint-disable no-await-in-loop */
 
 import { prisma } from '@/lib/db';
+import {
+  forkExplanationModelTypes,
+  forkExplanationScoreModels,
+  forkExplanationScoreTypes,
+  forkExplanationTypes,
+} from '@/lib/db/fork-config';
+import { DEFAULT_CREATOR_USER_ID } from '@/lib/env';
 import { CONFIG_BASE_PATH, downloadFileJsonlParsedLines } from '@/lib/utils/s3';
 import { Pool } from 'pg';
 
@@ -80,6 +87,26 @@ export async function importConfigFromS3() {
       update: line,
       create: line,
     });
+  }
+
+  await importForkConfig();
+}
+
+/** This fork's own types and models (lib/db/fork-config.ts), upserted after the bucket's config. */
+export async function importForkConfig() {
+  for (const row of forkExplanationModelTypes) {
+    await prisma.explanationModelType.upsert({ where: { name: row.name }, update: row, create: row });
+  }
+  for (const row of forkExplanationScoreModels) {
+    await prisma.explanationScoreModel.upsert({ where: { name: row.name }, update: row, create: row });
+  }
+  for (const type of forkExplanationTypes) {
+    const row = { ...type, creatorId: DEFAULT_CREATOR_USER_ID };
+    await prisma.explanationType.upsert({ where: { name: row.name }, update: row, create: row });
+  }
+  for (const type of forkExplanationScoreTypes) {
+    const row = { ...type, creatorId: DEFAULT_CREATOR_USER_ID };
+    await prisma.explanationScoreType.upsert({ where: { name: row.name }, update: row, create: row });
   }
 }
 

@@ -13,8 +13,9 @@
  *
  * - `typeName` and each score's `typeName` must name an existing explanation or score type, such
  *   as `np_max-act-logits` or `recall_alt`. These rows come from Neuronpedia's dataset config,
- *   loaded by Sync Config on /admin (and by every source import); the generate and score routes
- *   switch on their names, so a type is a method in code rather than something to add here.
+ *   loaded by Sync Config on /admin (and by every source import), which also loads this fork's own
+ *   `claude-blind` and `blind-probe-strong` from `lib/db/fork-config.ts`. The generate and score
+ *   routes switch on their names, so a type is a method in code rather than something to add here.
  * - Model names (`explanationModelName`, a score's `modelName`) must exist too. They come from the
  *   same config (`explanation_model_type.jsonl`, `explanation_score_model.jsonl`), and refusing an
  *   unknown one catches a typo before it splits scores across two labels.
