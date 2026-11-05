@@ -4,7 +4,7 @@
  *
  * Talks to Postgres directly, like scripts/compute-host.ts, so it works before the webapp is
  * running and needs no sign-in. The Makefile wraps each command (`make user-key`, `make model-add`,
- * `make source-set-update`); `make help` lists them.
+ * `make source-set-update`, `make explanations-import`); `make help` lists them.
  *
  *   ts-node scripts/local-admin.ts user-key --name local --admin
  *   ts-node scripts/local-admin.ts model-add --id qwen3-8b --layers 36 --neurons-per-layer 12288
@@ -12,6 +12,7 @@
  *     --dashboards-url http://127.0.0.1:3001/v2/qwen3-8b
  */
 import { PrismaClient } from '@prisma/client';
+import fs from 'fs';
 import {
   assertLocalDatabase,
   boolArg,
@@ -20,6 +21,7 @@ import {
   requireArg,
   requirePositiveInt,
 } from '../lib/local-admin/cli-args';
+import { importExplanations, parseImportFile } from '../lib/local-admin/import-explanations';
 import {
   addModelWithNeurons,
   defaultKeyPath,
@@ -52,6 +54,10 @@ Usage: local-admin <command> [options]
   source-set-update     change an existing source set
     --model <modelId>  [--set <name>]   set defaults to "neurons"
     [--dashboards-url <url|none>]  [--inference true|false]  [--visibility ...]
+
+  explanations-import   load explanations and their scores from a JSONL file (format in
+                        lib/local-admin/import-explanations.ts)
+    --file <path>  [--author <username>]   author defaults to "bot"
 
   --remote  allow writing to a database that is not on this machine
 `;
@@ -121,10 +127,23 @@ async function sourceSetUpdate(args: CliArgs) {
   );
 }
 
+async function explanationsImport(args: CliArgs) {
+  assertLocalDatabase(args, LOCAL_ONLY_REASON);
+  const file = requireArg(args, 'file', USAGE);
+  const lines = parseImportFile(fs.readFileSync(file, 'utf8'));
+  const result = await importExplanations(prisma, lines, { authorName: optional(args, 'author') ?? 'bot' });
+  console.log(
+    `${file}: ${lines.length} lines; ${result.explanationsCreated} explanations created, ` +
+      `${result.explanationsUpdated} updated, ${result.scoresWritten} scores written, ` +
+      `${result.neuronsCreated} neuron rows created`,
+  );
+}
+
 const COMMANDS: Record<string, (args: CliArgs) => Promise<void>> = {
   'user-key': userKey,
   'model-add': modelAdd,
   'source-set-update': sourceSetUpdate,
+  'explanations-import': explanationsImport,
 };
 
 async function main() {

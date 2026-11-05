@@ -22,7 +22,7 @@ LOAD_ROOT_ENV = set -a; if [ -f .env ]; then . ./.env; fi; set +a;
 .PHONY: help init-env install-nodejs \
 	db-init db-check db-status db-reset \
 	host-add host-list host-remove \
-	user-key model-add source-set-update \
+	user-key model-add source-set-update explanations-import \
 	webapp-install webapp-dev webapp-build webapp-run webapp-openapi sdk-dry-run \
 	inference-install inference-dev inference-list-configs inference-openapi \
 	autointerp-install autointerp-dev autointerp-openapi \
@@ -173,6 +173,13 @@ source-set-update: ## Local: change a source set. Required: MODEL. Optional: SET
 		$(if $(DASHBOARDS_URL),--dashboards-url $(DASHBOARDS_URL),) \
 		$(if $(INFERENCE),--inference $(INFERENCE),) \
 		$(if $(VISIBILITY),--visibility $(VISIBILITY),)
+
+explanations-import: ## Local: load explanations and scores from a JSONL file. Required: FILE. Optional: AUTHOR (bot)
+	@if [ -z "$(FILE)" ]; then \
+		echo "Error: FILE is required (one JSON object per line; format in apps/webapp/lib/local-admin/import-explanations.ts)."; \
+		exit 1; \
+	fi
+	@$(LOCAL_ADMIN) explanations-import --file "$(abspath $(FILE))" $(if $(AUTHOR),--author $(AUTHOR),)
 
 db-reset: ## Database: DROP the schema and rebuild it - this deletes your local data!
 	@echo "WARNING: This will delete all data in your local Neuronpedia database!"
