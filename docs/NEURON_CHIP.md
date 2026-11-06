@@ -8,8 +8,8 @@ A chip names one neuron by its id and its top explanation, and links to the neur
 
 The ring around the dot shows how deep the layer sits in the model (layer 16 of 36 fills about
 half of it), and its colour shows which model it belongs to: Qwen3-0.6B is teal, 8B violet and 32B
-amber, and anything else is grey. A neuron outside the raw `neurons` set shows its set name as a
-tag. Hover for the model, the layer count and the full label.
+amber, and anything else is grey. A neuron outside the raw `neurons` set shows its set name last, as
+in `( L18.N7807 | eternal, divine | neuronpersonas )`. Hover for the model, the layer count and the full label.
 
 There are two versions of the same chip, and both read the same data:
 

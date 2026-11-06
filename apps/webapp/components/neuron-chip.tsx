@@ -95,9 +95,6 @@ export default function NeuronChip({
       <span className="font-mono text-[0.95em] font-semibold" style={{ color }}>
         {id}
       </span>
-      {setName !== NEURONS_SET && (
-        <span className="rounded border border-slate-300 px-1 text-[0.78em] text-slate-500">{setName}</span>
-      )}
       <span className="text-slate-300" aria-hidden="true">
         |
       </span>
@@ -108,6 +105,14 @@ export default function NeuronChip({
       >
         {state === 'ok' ? shown : state === 'none' ? 'no label' : '…'}
       </span>
+      {setName !== NEURONS_SET && (
+        <>
+          <span className="text-slate-300" aria-hidden="true">
+            |
+          </span>
+          <span className="text-slate-500">{setName}</span>
+        </>
+      )}
     </>
   );
   const chipClass = `inline-flex max-w-full items-center gap-[0.4em] whitespace-nowrap rounded-full border border-slate-300 bg-slate-50 py-[0.1em] pl-[0.35em] pr-[0.6em] align-baseline text-[0.88em] leading-normal text-slate-900 no-underline transition-colors hover:border-slate-500 ${

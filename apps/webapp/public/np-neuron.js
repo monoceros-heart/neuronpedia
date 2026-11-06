@@ -342,7 +342,7 @@
     'svg{flex:none;width:1.05em;height:1.05em}' +
     '.id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.95em;font-weight:600;color:var(--np-accent)}' +
     '.sep{color:var(--np-border)}' +
-    '.set{font-size:.78em;color:var(--np-muted);border:1px solid var(--np-border);border-radius:4px;padding:0 .3em}' +
+    '.set{color:var(--np-muted)}' +
     '.label{overflow:hidden;text-overflow:ellipsis;max-width:var(--np-label-max,22em);padding-right:.1em}' +
     '.label.none{color:var(--np-muted);font-style:italic}' +
     '.label.loading{color:var(--np-muted)}';
@@ -483,9 +483,12 @@
     a.setAttribute('aria-label', id + (result.state === 'ok' ? ', ' + result.label : '') + ', ' + spec.model);
     a.appendChild(glyph(depth(layer, layers), color));
     a.appendChild(el('span', { class: 'id', part: 'id' }, id));
-    if (set !== NEURONS_SET) a.appendChild(el('span', { class: 'set', part: 'set' }, set));
     a.appendChild(el('span', { class: 'sep', 'aria-hidden': 'true' }, '|'));
     a.appendChild(el('span', { class: 'label ' + (result.state === 'ok' ? '' : result.state), part: 'label' }, result.label));
+    if (set !== NEURONS_SET) {
+      a.appendChild(el('span', { class: 'sep', 'aria-hidden': 'true' }, '|'));
+      a.appendChild(el('span', { class: 'set', part: 'set' }, set));
+    }
     sr.appendChild(a);
   };
 
