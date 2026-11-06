@@ -132,6 +132,13 @@ describe('addModelWithNeurons', () => {
     expect(db.source.updateMany).not.toHaveBeenCalled();
   });
 
+  it('sets the hidden size on create and on a later run, so vectors can be uploaded', async () => {
+    await addModelWithNeurons(asDb(), { id: 'm', layers: 3, neuronsPerLayer: 8, dimension: 4096 });
+    const call = db.model.upsert.mock.calls[0][0];
+    expect(call.create.dimension).toBe(4096);
+    expect(call.update).toEqual({ layers: 3, neuronsPerLayer: 8, dimension: 4096 });
+  });
+
   it('turns inference on for the model, set and every source when asked', async () => {
     await addModelWithNeurons(asDb(), { id: 'm', layers: 2, neuronsPerLayer: 8, inference: true });
 

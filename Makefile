@@ -156,7 +156,7 @@ user-key: ## Local: create a user and write its API key to a file, never stdout.
 		$(if $(filter 1 true yes,$(ROTATE)),--rotate,) \
 		$(if $(OUT),--out "$(OUT)",)
 
-model-add: ## Local: add a model and its raw-neuron source set. Required: MODEL, LAYERS, NEURONS_PER_LAYER. Optional: HF_REPO, DISPLAY_NAME, DASHBOARDS_URL, INFERENCE=1, VISIBILITY
+model-add: ## Local: add a model and its raw-neuron source set. Required: MODEL, LAYERS, NEURONS_PER_LAYER. Optional: HF_REPO, DISPLAY_NAME, DIMENSION (hidden size, for vectors), DASHBOARDS_URL, INFERENCE=1, VISIBILITY
 	@if [ -z "$(MODEL)" ] || [ -z "$(LAYERS)" ] || [ -z "$(NEURONS_PER_LAYER)" ]; then \
 		echo "Error: MODEL, LAYERS and NEURONS_PER_LAYER are all required."; \
 		echo "  e.g. make model-add MODEL=qwen3-8b LAYERS=36 NEURONS_PER_LAYER=12288 HF_REPO=Qwen/Qwen3-8B"; \
@@ -165,6 +165,7 @@ model-add: ## Local: add a model and its raw-neuron source set. Required: MODEL,
 	@$(LOCAL_ADMIN) model-add --id $(MODEL) --layers $(LAYERS) --neurons-per-layer $(NEURONS_PER_LAYER) \
 		$(if $(HF_REPO),--hf-repo $(HF_REPO),) \
 		$(if $(DISPLAY_NAME),--display-name "$(DISPLAY_NAME)",) \
+		$(if $(DIMENSION),--dimension $(DIMENSION),) \
 		$(if $(DASHBOARDS_URL),--dashboards-url $(DASHBOARDS_URL),) \
 		$(if $(filter 1 true yes,$(INFERENCE)),--inference,) \
 		$(if $(VISIBILITY),--visibility $(VISIBILITY),)
