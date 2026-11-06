@@ -17,7 +17,13 @@ vi.mock('@/lib/db/neuron', () => ({ getNeuronOnly: vi.fn() }));
 vi.mock('../env', () => ({ INFERENCE_SERVER_SECRET: 'test-secret' }));
 
 import { SteerOutputType } from '@prisma/client';
-import { INFERENCE_REQUEST_TIMEOUT_MS, lensPromptStream, steerCompletion } from './inference';
+import {
+  INFERENCE_REQUEST_TIMEOUT_MS,
+  inferenceFetch,
+  inferenceRequestTimeoutMs,
+  lensPromptStream,
+  steerCompletion,
+} from './inference';
 
 const HEADERS_TIMEOUT_MS = 8_000;
 
@@ -372,5 +378,56 @@ describe('steerCompletion without streaming', () => {
     // The deadline is the caller's own, so it stops the call rather than moving to the next host.
     expect(attempts).toHaveLength(1);
     timeoutSpy.mockRestore();
+  });
+});
+
+describe('inferenceFetch', () => {
+  it('sends the body as bytes with its headers, not as a stream', async () => {
+    const seen: { url: string; init?: RequestInit }[] = [];
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      seen.push({ url, init });
+      return new Response('{}');
+    });
+    try {
+      const request = new Request('https://host.example/v1/steer/completion', {
+        method: 'POST',
+        headers: { 'X-SECRET-KEY': 'test-secret', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: 'hi' }),
+      });
+      await inferenceFetch(request);
+      expect(seen).toHaveLength(1);
+      expect(seen[0].url).toBe('https://host.example/v1/steer/completion');
+      expect(seen[0].init?.method).toBe('POST');
+      expect(seen[0].init?.body).toBeInstanceOf(ArrayBuffer);
+      expect(new TextDecoder().decode(seen[0].init?.body as ArrayBuffer)).toBe('{"prompt":"hi"}');
+      expect(new Headers(seen[0].init?.headers).get('X-SECRET-KEY')).toBe('test-secret');
+      expect(seen[0].init?.signal).toBeInstanceOf(AbortSignal);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('sends a GET with no body', async () => {
+    const seen: RequestInit[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      seen.push(init);
+      return new Response('{}');
+    });
+    try {
+      await inferenceFetch(new Request('https://host.example/health'));
+      expect(seen[0].body).toBeUndefined();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('inferenceRequestTimeoutMs', () => {
+  it('reads a positive whole number of milliseconds and otherwise keeps 60s', () => {
+    expect(inferenceRequestTimeoutMs('180000')).toBe(180_000);
+    expect(inferenceRequestTimeoutMs(undefined)).toBe(60_000);
+    expect(inferenceRequestTimeoutMs('')).toBe(60_000);
+    expect(inferenceRequestTimeoutMs('soon')).toBe(60_000);
+    expect(inferenceRequestTimeoutMs('-5')).toBe(60_000);
   });
 });

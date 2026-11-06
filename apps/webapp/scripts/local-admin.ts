@@ -46,6 +46,7 @@ Usage: local-admin <command> [options]
     --layers <n>
     --neurons-per-layer <n>
     [--hf-repo <org/name>]  [--display-name <name>]  [--owner <org>]
+    [--dimension <n>]           hidden size; /api/vector/new needs it (Qwen3-8B 4096, 0.6B 1024)
     [--dashboards-url <url>]    base URL of the set's dashboard files
     [--inference]               the set's layers take live inference (needs a registered host)
     [--visibility PUBLIC|UNLISTED|PRIVATE]   defaults to PUBLIC
@@ -95,6 +96,7 @@ async function modelAdd(args: CliArgs) {
     id: requireArg(args, 'id', USAGE),
     layers: requirePositiveInt(args, 'layers', USAGE),
     neuronsPerLayer: requirePositiveInt(args, 'neurons-per-layer', USAGE),
+    dimension: args.has('dimension') ? requirePositiveInt(args, 'dimension', USAGE) : undefined,
     displayName: optional(args, 'display-name'),
     owner: optional(args, 'owner'),
     hfRepoId: optional(args, 'hf-repo'),

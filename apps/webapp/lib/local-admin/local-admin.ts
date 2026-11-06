@@ -106,6 +106,8 @@ export type ModelAddOptions = {
   id: string;
   layers: number;
   neuronsPerLayer: number;
+  // Width of the residual stream (hidden size). Vectors must have exactly this many floats per layer.
+  dimension?: number;
   displayName?: string;
   owner?: string;
   hfRepoId?: string;
@@ -139,6 +141,7 @@ export async function addModelWithNeurons(db: Db, opts: ModelAddOptions) {
     displayNameShort: opts.displayName,
     owner: opts.owner,
     hfRepoId: opts.hfRepoId,
+    dimension: opts.dimension,
     visibility: opts.visibility,
     inferenceEnabled: opts.inference,
   });
@@ -167,6 +170,7 @@ export async function addModelWithNeurons(db: Db, opts: ModelAddOptions) {
         neuronsPerLayer: opts.neuronsPerLayer,
         owner: opts.owner ?? 'local',
         hfRepoId: opts.hfRepoId ?? null,
+        dimension: opts.dimension ?? null,
         visibility,
         inferenceEnabled: inference,
       },

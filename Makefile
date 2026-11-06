@@ -30,7 +30,7 @@ LOAD_ROOT_ENV = set -a; if [ -f .env ]; then . ./.env; fi; set +a;
 	host-add host-list host-remove \
 	user-key model-add source-set-update explanations-import local-secret dashboards-serve dashboards-check \
 	webapp-install webapp-dev webapp-build webapp-run webapp-openapi sdk-dry-run \
-	inference-install inference-dev inference-list-configs inference-openapi \
+	inference-install inference-dev inference-list-configs inference-modal-deploy inference-modal-stop inference-openapi \
 	autointerp-install autointerp-dev autointerp-openapi \
 	graph-install graph-dev graph-openapi \
 	sparsity-install sparsity-dev sparsity-openapi \
@@ -156,7 +156,7 @@ user-key: ## Local: create a user and write its API key to a file, never stdout.
 		$(if $(filter 1 true yes,$(ROTATE)),--rotate,) \
 		$(if $(OUT),--out "$(OUT)",)
 
-model-add: ## Local: add a model and its raw-neuron source set. Required: MODEL, LAYERS, NEURONS_PER_LAYER. Optional: HF_REPO, DISPLAY_NAME, DASHBOARDS_URL, INFERENCE=1, VISIBILITY
+model-add: ## Local: add a model and its raw-neuron source set. Required: MODEL, LAYERS, NEURONS_PER_LAYER. Optional: HF_REPO, DISPLAY_NAME, DIMENSION (hidden size, for vectors), DASHBOARDS_URL, INFERENCE=1, VISIBILITY
 	@if [ -z "$(MODEL)" ] || [ -z "$(LAYERS)" ] || [ -z "$(NEURONS_PER_LAYER)" ]; then \
 		echo "Error: MODEL, LAYERS and NEURONS_PER_LAYER are all required."; \
 		echo "  e.g. make model-add MODEL=qwen3-8b LAYERS=36 NEURONS_PER_LAYER=12288 HF_REPO=Qwen/Qwen3-8B"; \
@@ -165,6 +165,7 @@ model-add: ## Local: add a model and its raw-neuron source set. Required: MODEL,
 	@$(LOCAL_ADMIN) model-add --id $(MODEL) --layers $(LAYERS) --neurons-per-layer $(NEURONS_PER_LAYER) \
 		$(if $(HF_REPO),--hf-repo $(HF_REPO),) \
 		$(if $(DISPLAY_NAME),--display-name "$(DISPLAY_NAME)",) \
+		$(if $(DIMENSION),--dimension $(DIMENSION),) \
 		$(if $(DASHBOARDS_URL),--dashboards-url $(DASHBOARDS_URL),) \
 		$(if $(filter 1 true yes,$(INFERENCE)),--inference,) \
 		$(if $(VISIBILITY),--visibility $(VISIBILITY),)
@@ -288,6 +289,22 @@ inference-list-configs: ## Inference: list available MODEL_SOURCESET values
 		echo -e "    \033[1;35mmake inference-dev MODEL_SOURCESET=$$name\033[0m"; \
 		echo ""; \
 	done
+
+# Modal runs utils/modal-inference/inference_host.py through uvx, so nothing is added to any
+# project's dependencies; the Modal client reads your token from ~/.modal.toml (`modal token new`).
+MODAL_CLI ?= uvx --from modal==1.6.2 modal
+
+inference-modal-deploy: ## Inference: run a config on a Modal GPU and print its URL for host-add. Required: MODEL_SOURCESET. Optional: GPU=L4
+	@if [ ! -f ".env.inference.$(MODEL_SOURCESET)" ]; then \
+		echo "Error: .env.inference.$(MODEL_SOURCESET) not found. Run 'make inference-list-configs'."; \
+		exit 1; \
+	fi
+	@$(SET_LOCAL_SECRET); \
+	NP_INFERENCE_SECRET="$$SECRET" NP_INFERENCE_CONFIG="$(MODEL_SOURCESET)" NP_INFERENCE_GPU="$(GPU)" \
+		$(MODAL_CLI) deploy utils/modal-inference/inference_host.py
+
+inference-modal-stop: ## Inference: stop the Modal app for a config (deregister it with host-remove too). Required: MODEL_SOURCESET
+	@$(MODAL_CLI) app stop -y "np-inference-$$(echo '$(MODEL_SOURCESET)' | tr 'A-Z' 'a-z' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$$//g')"
 
 inference-openapi: ## Inference: rewrite apps/inference/openapi.json from the pydantic models
 	cd apps/inference && $(call uv_run,inference) python dump_openapi.py

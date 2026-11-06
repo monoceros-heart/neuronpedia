@@ -121,8 +121,18 @@ const HEADERS_TIMEOUT_MS = 8_000;
  * These buffer the entire response, so there is no headers/body split to exploit and no
  * partial result worth waiting for. Exported for the two hand-written fetches that have not
  * moved to the typed client yet.
+ *
+ * INFERENCE_REQUEST_TIMEOUT_MS in the environment overrides the 60s default. A scale-to-zero host
+ * (`make inference-modal-deploy`) needs more: its first request after an idle spell waits for a
+ * container to start and load the model, which takes over a minute for Qwen3-8B.
  */
-export const INFERENCE_REQUEST_TIMEOUT_MS = 60_000;
+export const INFERENCE_REQUEST_TIMEOUT_MS = inferenceRequestTimeoutMs(process.env.INFERENCE_REQUEST_TIMEOUT_MS);
+
+/** A positive whole number of milliseconds from the environment, else the 60s default. */
+export function inferenceRequestTimeoutMs(raw: string | undefined): number {
+  const value = Number(raw);
+  return raw && Number.isInteger(value) && value > 0 ? value : 60_000;
+}
 
 /** True when `error` is this module's own deadline rather than an abort from the caller. */
 const isTimeoutAbort = (error: unknown) => (error as { name?: string } | null)?.name === 'TimeoutError';
@@ -130,6 +140,24 @@ const isTimeoutAbort = (error: unknown) => (error as { name?: string } | null)?.
 const withDeadline = (timeoutMs: number, callerSignal?: AbortSignal | null): AbortSignal => {
   const deadline = AbortSignal.timeout(timeoutMs);
   return callerSignal ? AbortSignal.any([callerSignal, deadline]) : deadline;
+};
+
+/**
+ * Sends an openapi-fetch Request with its body read into memory first.
+ *
+ * Passing the Request straight to fetch streams its body, which undici sends with
+ * `Transfer-Encoding: chunked`. Some proxies in front of an inference server refuse that: Modal's
+ * web-server proxy answers every chunked HTTP/1.1 request with a 500. A buffered body goes with a
+ * Content-Length instead, and these bodies are small JSON.
+ */
+export const inferenceFetch = async (request: Request): Promise<Response> => {
+  const body = request.body ? await request.arrayBuffer() : undefined;
+  return fetch(request.url, {
+    method: request.method,
+    headers: request.headers,
+    body,
+    signal: withDeadline(INFERENCE_REQUEST_TIMEOUT_MS, request.signal),
+  });
 };
 
 // The /v1 prefix is part of the paths in the spec, so it is not in the base URL.
@@ -142,7 +170,7 @@ export const makeInferenceServerApiWithServerHost = (serverHost: string) =>
     },
     // openapi-fetch has no timeout of its own, so without this every non-streaming call
     // inherits undici's 300s and hangs past whatever `maxDuration` the route declared.
-    fetch: (request: Request) => fetch(request, { signal: withDeadline(INFERENCE_REQUEST_TIMEOUT_MS, request.signal) }),
+    fetch: inferenceFetch,
   });
 
 type InferenceResult<T> = { data?: T; error?: unknown; response: Response };
