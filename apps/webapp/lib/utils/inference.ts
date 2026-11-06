@@ -121,8 +121,18 @@ const HEADERS_TIMEOUT_MS = 8_000;
  * These buffer the entire response, so there is no headers/body split to exploit and no
  * partial result worth waiting for. Exported for the two hand-written fetches that have not
  * moved to the typed client yet.
+ *
+ * INFERENCE_REQUEST_TIMEOUT_MS in the environment overrides the 60s default. A scale-to-zero host
+ * (`make inference-modal-deploy`) needs more: its first request after an idle spell waits for a
+ * container to start and load the model, which takes over a minute for Qwen3-8B.
  */
-export const INFERENCE_REQUEST_TIMEOUT_MS = 60_000;
+export const INFERENCE_REQUEST_TIMEOUT_MS = inferenceRequestTimeoutMs(process.env.INFERENCE_REQUEST_TIMEOUT_MS);
+
+/** A positive whole number of milliseconds from the environment, else the 60s default. */
+export function inferenceRequestTimeoutMs(raw: string | undefined): number {
+  const value = Number(raw);
+  return raw && Number.isInteger(value) && value > 0 ? value : 60_000;
+}
 
 /** True when `error` is this module's own deadline rather than an abort from the caller. */
 const isTimeoutAbort = (error: unknown) => (error as { name?: string } | null)?.name === 'TimeoutError';

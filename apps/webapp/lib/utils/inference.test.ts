@@ -17,7 +17,13 @@ vi.mock('@/lib/db/neuron', () => ({ getNeuronOnly: vi.fn() }));
 vi.mock('../env', () => ({ INFERENCE_SERVER_SECRET: 'test-secret' }));
 
 import { SteerOutputType } from '@prisma/client';
-import { INFERENCE_REQUEST_TIMEOUT_MS, inferenceFetch, lensPromptStream, steerCompletion } from './inference';
+import {
+  INFERENCE_REQUEST_TIMEOUT_MS,
+  inferenceFetch,
+  inferenceRequestTimeoutMs,
+  lensPromptStream,
+  steerCompletion,
+} from './inference';
 
 const HEADERS_TIMEOUT_MS = 8_000;
 
@@ -413,5 +419,15 @@ describe('inferenceFetch', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe('inferenceRequestTimeoutMs', () => {
+  it('reads a positive whole number of milliseconds and otherwise keeps 60s', () => {
+    expect(inferenceRequestTimeoutMs('180000')).toBe(180_000);
+    expect(inferenceRequestTimeoutMs(undefined)).toBe(60_000);
+    expect(inferenceRequestTimeoutMs('')).toBe(60_000);
+    expect(inferenceRequestTimeoutMs('soon')).toBe(60_000);
+    expect(inferenceRequestTimeoutMs('-5')).toBe(60_000);
   });
 });

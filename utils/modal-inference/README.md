@@ -24,7 +24,9 @@ make source-set-update ...          # turn inference on for the set, if model-ad
   (`NP_INFERENCE_SCALEDOWN`, in seconds). The next request waits while it loads
   the model, about a minute once the weights are cached, longer on the very first
   start, which downloads them into the `neuronpedia-hf-cache` Volume
-  (`NP_INFERENCE_VOLUME`).
+  (`NP_INFERENCE_VOLUME`). The webapp's own deadline for a non-streaming call is
+  `INFERENCE_REQUEST_TIMEOUT_MS` (300000 in `.env.localhost`; 60 s if unset), so
+  it waits out a cold start instead of failing the first request.
 - **Only the config's own keys** go to Modal. The repo-root `.env`, which holds
   personal keys, is not sent. A gated model would need `HF_TOKEN` added to the
   script's allowed keys and a Modal secret.
